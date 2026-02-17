@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CocoVilla - Stay, Experience, Journal</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Jost:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            text: '#2C3E50',
+                            green: '#8CAB91',    /* Softer Sage Green from ref */
+                            btn: '#8CA995',      /* Muted Green Button */
+                            bg: '#F9F9F7'        /* Warm Off-white */
+                        },
+                        fontFamily: {
+                            sans: ['Jost', 'sans-serif'],
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            font-family: 'Jost', sans-serif;
+        }
+
+        .hero-section {
+            background-image: url('https://images.unsplash.com/photo-1602002418082-a4443e081dd1?ixlib=rb-4.0.3&auto=format&fit=crop&w=1920&q=80');
+            /* Villa with palms */
+            background-size: cover;
+            background-position: center;
+            height: 80vh;
+        }
+    </style>
+</head>
+
+<body class="bg-brand-bg text-brand-text antialiased">
+
+    <!-- Navigation -->
+    <nav class="absolute top-0 w-full z-50 text-white/90">
+        <div class="max-w-7xl mx-auto px-6 lg:px-12 h-24 flex justify-between items-center">
+            <!-- Logo -->
+            <div class="text-3xl font-medium tracking-wide">
+                CocoVilla
+            </div>
+
+            <!-- Menu Links -->
+            <div class="hidden md:flex space-x-8 text-xs font-bold tracking-widest uppercase">
+                <a href="#" class="hover:text-white transition">Stay</a>
+                <span class="opacity-50">/</span>
+                <a href="#" class="hover:text-white transition">Experience</a>
+                <span class="opacity-50">/</span>
+                <a href="#" class="hover:text-white transition">Journal</a>
+                <span class="opacity-50">/</span>
+                <a href="#" class="hover:text-white transition">Contact</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <div class="hero-section relative flex items-center">
+        <div class="absolute inset-0 bg-black/20"></div> <!-- Slight overlay for text readability -->
+        <div class="max-w-7xl mx-auto px-6 lg:px-12 w-full relative z-10">
+            <h1 class="text-5xl md:text-6xl font-normal text-white mb-4 leading-tight">Immersed in Nature</h1>
+            <p class="text-lg md:text-xl text-gray-100 mb-8 font-light tracking-wide">Your private sanctuary in the
+                tropics.</p>
+            <a href="#book"
+                class="inline-block bg-brand-btn text-white text-xs font-bold uppercase tracking-widest px-8 py-4 rounded-full hover:bg-opacity-90 transition">
+                Book Now
+            </a>
+        </div>
+    </div>
+
+    <!-- Gallery Grid Section -->
+    <section class="py-20">
+        <div class="max-w-6xl mx-auto px-6">
+            <!-- Section Header -->
+            <div class="mb-12">
+                <h2 class="text-sm font-bold tracking-widest uppercase text-gray-500 mb-2">Immersed in Nature</h2>
+            </div>
+
+            <!-- 3x2 Grid -->
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+
+                <!-- 1. Coconut in Hand -->
+                <div class="aspect-square overflow-hidden bg-gray-200">
+                    <img src="https://images.unsplash.com/photo-1627448820692-2ba0f1c97f48?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80"
+                        alt="Fresh Coconut"
+                        class="w-full h-full object-cover hover:scale-105 transition duration-700 ease-out">
+                </div>
+
+                <!-- 2. Jungle Path -->
+                <div class="aspect-square overflow-hidden bg-gray-200">
+                    <img src="https://images.unsplash.com/photo-1590523741831-ab7e8b8f9c78?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80"
+                        alt="Garden Path"
+                        class="w-full h-full object-cover hover:scale-105 transition duration-700 ease-out">
+                </div>
+
+                <!-- 3. Hammock -->
+                <div class="aspect-square overflow-hidden bg-gray-200">
+                    <img src="https://images.unsplash.com/photo-1596178065887-1198b6148b2b?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80"
+                        alt="Hammock"
+                        class="w-full h-full object-cover hover:scale-105 transition duration-700 ease-out">
+                </div>
+
+                <!-- 4. Lounge Chair -->
+                <div class="aspect-square overflow-hidden bg-gray-200">
+                    <img src="https://images.unsplash.com/photo-1499916078039-922301b0eb9b?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80"
+                        alt="Relaxing Chair"
+                        class="w-full h-full object-cover hover:scale-105 transition duration-700 ease-out">
+                </div>
+
+                <!-- 5. Fruit Bowl -->
+                <div class="aspect-square overflow-hidden bg-gray-200">
+                    <img src="https://images.unsplash.com/photo-1615486511484-92e5462f9ed2?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80"
+                        alt="Tropical Fruit"
+                        class="w-full h-full object-cover hover:scale-105 transition duration-700 ease-out">
+                </div>
+
+                <!-- 6. Rain/Greenery -->
+                <div class="aspect-square overflow-hidden bg-gray-200">
+                    <img src="https://images.unsplash.com/photo-1518531933807-6a567d268153?ixlib=rb-4.0.3&auto=format&fit=crop&w=600&q=80"
+                        alt="Tropical Rain"
+                        class="w-full h-full object-cover hover:scale-105 transition duration-700 ease-out">
+                </div>
+
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer Simple -->
+    <footer class="border-t border-gray-200 py-12 mt-12 bg-white">
+        <div
+            class="max-w-6xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center text-xs text-gray-500 uppercase tracking-widest">
+            <div>
+                CocoVilla - Eco-Luxury Retreat
+            </div>
+            <div class="flex space-x-6 mt-4 md:mt-0">
+                <a href="#" class="hover:text-black">Instagram</a>
+                <a href="#" class="hover:text-black">Facebook</a>
+                <a href="#" class="hover:text-black">YouTube</a>
+            </div>
+        </div>
+    </footer>
+
+</body>
+
+</html>
