@@ -11,6 +11,7 @@ const BookingForm = () => {
         checkIn: '',
         checkOut: '',
         guests: 1,
+        mealPlan: 'bed_and_breakfast',
         message: ''
     });
 
@@ -172,6 +173,41 @@ const BookingForm = () => {
                         <option value="2">2 Guests</option>
                         <option value="3">3 Guests</option>
                     </select>
+                </div>
+
+                {/* Meal Plan Selection */}
+                <div className="bg-gray-50 p-4 rounded-xl border border-gray-200">
+                    <label className="block text-sm font-medium text-gray-700 mb-3">Meal Plan</label>
+                    <div className="flex gap-4">
+                        <label className={`flex-1 flex items-center justify-center gap-2 p-3 rounded-lg border cursor-pointer transition-all ${formData.mealPlan === 'bed_and_breakfast'
+                            ? 'bg-brand-green/10 border-brand-green text-brand-green ring-1 ring-brand-green'
+                            : 'bg-white border-gray-200 text-gray-600 hover:border-brand-green/50'
+                            }`}>
+                            <input
+                                type="radio"
+                                name="mealPlan"
+                                value="bed_and_breakfast"
+                                checked={formData.mealPlan === 'bed_and_breakfast'}
+                                onChange={handleChange}
+                                className="sr-only"
+                            />
+                            <span className="font-bold text-sm">Bed & Breakfast</span>
+                        </label>
+                        <label className={`flex-1 flex items-center justify-center gap-2 p-3 rounded-lg border cursor-pointer transition-all ${formData.mealPlan === 'room_only'
+                            ? 'bg-brand-green/10 border-brand-green text-brand-green ring-1 ring-brand-green'
+                            : 'bg-white border-gray-200 text-gray-600 hover:border-brand-green/50'
+                            }`}>
+                            <input
+                                type="radio"
+                                name="mealPlan"
+                                value="room_only"
+                                checked={formData.mealPlan === 'room_only'}
+                                onChange={handleChange}
+                                className="sr-only"
+                            />
+                            <span className="font-bold text-sm">Room Only</span>
+                        </label>
+                    </div>
                 </div>
 
                 {/* --- Verification Section --- */}

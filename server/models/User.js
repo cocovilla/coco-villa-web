@@ -21,6 +21,16 @@ const userSchema = new mongoose.Schema({
     },
     avatar: {
         type: String
+    },
+    country: {
+        type: String
+    },
+    contactNumber: {
+        type: String
+    },
+    password: {
+        type: String,
+        select: false // Not returned by default queries
     }
 }, { timestamps: true });
 

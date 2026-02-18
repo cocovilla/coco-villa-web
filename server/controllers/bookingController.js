@@ -1,5 +1,6 @@
 const Booking = require('../models/Booking');
 const Room = require('../models/Room');
+const User = require('../models/User');
 const { sendEmail } = require('../services/emailService');
 const { sendWhatsApp } = require('../services/whatsappService');
 
@@ -46,15 +47,36 @@ exports.createBooking = async (req, res) => {
         const { roomTypeId, checkIn, checkOut, guests, totalPrice, message, type, email } = req.body;
         const userId = req.user.id;
 
+        // Fetch user details for email notifications
+        const user = await User.findById(userId);
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
         // Long Stay Inquiry Handling
         if (type === 'long_stay_inquiry') {
+            // Create Inquiry Record
+            const inquiry = new Booking({
+                userId,
+                roomTypeId,
+                guests,
+                type: 'long_stay_inquiry',
+                duration: req.body.duration,
+                contactEmail: email,
+                message: message || 'No message',
+                status: 'inquiry'
+            });
+
+            await inquiry.save();
+
             // Send Email to Admin
             await sendEmail(
                 'admin@cocovilla.com', // Replace with actual admin email or env var
                 'New Long Stay Inquiry',
-                `User: ${req.user.name} (${req.user.email})
+                `User: ${user.name} (${user.email})
                  Contact Email: ${email}
                  Guests: ${guests}
+                 Duration: ${req.body.duration}
                  Message: ${message || 'No message'}
                  
                  This user is requesting a quotation for a long stay (1 month - 2 years).`
@@ -70,7 +92,7 @@ exports.createBooking = async (req, res) => {
             // Notification (WhatsApp)
             await sendWhatsApp(process.env.ADMIN_PHONE_NUMBER, `Long Stay Inquiry from ${req.user.name}. Check email.`);
 
-            return res.status(200).json({ message: 'Inquiry sent successfully' });
+            return res.status(200).json({ message: 'Inquiry sent successfully', booking: inquiry });
         }
 
         // Standard Booking Validation
@@ -98,10 +120,47 @@ exports.createBooking = async (req, res) => {
         await booking.save();
 
         // Notifications
-        await sendEmail(req.user.email, 'Booking Received - Pending Approval', 'Your booking request has been received.');
-        await sendWhatsApp(process.env.ADMIN_PHONE_NUMBER, `New Booking Request from ${req.user.name ?? 'User'}`);
+        await sendEmail(user.email, 'Booking Received - Pending Approval', 'Your booking request has been received.');
+        await sendWhatsApp(process.env.ADMIN_PHONE_NUMBER, `New Booking Request from ${user.name}`);
 
         res.status(201).json(booking);
+    } catch (error) {
+        res.status(500).json({ message: 'Server error', error: error.message });
+    }
+};
+
+// User: Cancel Booking
+exports.cancelBooking = async (req, res) => {
+    try {
+        const booking = await Booking.findById(req.params.id);
+
+        if (!booking) {
+            return res.status(404).json({ message: 'Booking not found' });
+        }
+
+        // Verify ownership
+        if (booking.userId.toString() !== req.user.id) {
+            return res.status(403).json({ message: 'Not authorized to cancel this booking' });
+        }
+
+        if (booking.status === 'completed' || booking.status === 'cancelled') {
+            return res.status(400).json({ message: 'Cannot cancel a completed or already cancelled booking' });
+        }
+
+        booking.status = 'cancelled';
+        await booking.save();
+
+        // Notify Admin (optional, but good practice)
+        if (booking.type !== 'long_stay_inquiry') {
+            const user = await User.findById(req.user.id);
+            await sendEmail(
+                'admin@cocovilla.com',
+                'Booking Cancelled by User',
+                `Booking ID: ${booking._id}\nUser: ${user.name}\nCheck-in: ${new Date(booking.checkIn).toLocaleDateString()}`
+            );
+        }
+
+        res.json({ message: 'Booking cancelled successfully', booking });
     } catch (error) {
         res.status(500).json({ message: 'Server error', error: error.message });
     }
@@ -110,7 +169,10 @@ exports.createBooking = async (req, res) => {
 // Get User Bookings
 exports.getMyBookings = async (req, res) => {
     try {
-        const bookings = await Booking.find({ userId: req.user.id }).populate('roomId').sort({ createdAt: -1 });
+        const bookings = await Booking.find({ userId: req.user.id })
+            .populate('roomId')
+            .populate('roomTypeId')
+            .sort({ createdAt: -1 });
         res.json(bookings);
     } catch (error) {
         res.status(500).json({ message: 'Server error' });
@@ -248,6 +310,29 @@ exports.updateBlockedDate = async (req, res) => {
 
         await booking.save();
         res.json({ message: 'Block updated successfully', booking });
+    } catch (error) {
+        res.status(500).json({ message: 'Server error', error: error.message });
+    }
+};
+
+// Public: Get All Unavailable Dates (Confirmed Bookings + Blocked Dates)
+exports.getUnavailableDates = async (req, res) => {
+    try {
+        // Fetch confirmed bookings
+        const bookings = await Booking.find({ status: 'confirmed' }).select('checkIn checkOut');
+
+        // Fetch blocked dates (guests: 0, totalPrice: 0) - or if you separate models, fetch there
+        // Assuming Blocked Dates are Bookings with specific criteria as per existing logic
+        // const blocked = await Booking.find({ guests: 0, totalPrice: 0 }).select('checkIn checkOut');
+        // Actually, the above query is a subset of 'confirmed', but let's be explicit if needed or just rely on 'confirmed'.
+        // Since blocked dates are saved as 'confirmed' bookings, the first query covers both.
+
+        const unavailableDates = bookings.map(b => ({
+            start: b.checkIn,
+            end: b.checkOut
+        }));
+
+        res.json(unavailableDates);
     } catch (error) {
         res.status(500).json({ message: 'Server error', error: error.message });
     }

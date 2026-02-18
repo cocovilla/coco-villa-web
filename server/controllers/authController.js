@@ -38,9 +38,12 @@ exports.googleLogin = async (req, res) => {
             }
         }
 
+        // Check if profile is incomplete
+        const profileIncomplete = !user.password;
+
         // Generate JWT
         const jwtToken = jwt.sign(
-            { id: user._id, role: user.role },
+            { id: user._id, role: user.role, profileIncomplete },
             process.env.JWT_SECRET,
             { expiresIn: '7d' }
         );
@@ -51,7 +54,8 @@ exports.googleLogin = async (req, res) => {
                 name: user.name,
                 email: user.email,
                 role: user.role,
-                avatar: user.avatar
+                avatar: user.avatar,
+                profileIncomplete
             },
             token: jwtToken
         });
@@ -72,8 +76,7 @@ exports.devLogin = async (req, res) => {
                 name: name || 'Test User',
                 email,
                 googleId: `dev_${Date.now()}`,
-                role: role || 'user',
-                avatar: 'https://via.placeholder.com/150'
+                role: role || 'user'
             });
             await user.save();
         }
@@ -155,15 +158,17 @@ exports.verifyOTP = async (req, res) => {
                 name: name || 'Guest User',
                 email,
                 role: 'user',
-                googleId: `email_${Date.now()}`, // Placeholder to satisfy unique constraint if needed, or make sure schema allows null
-                avatar: 'https://via.placeholder.com/150'
+                googleId: `email_${Date.now()}`
             });
             await user.save();
         }
 
+        // Check if profile is incomplete
+        const profileIncomplete = !user.password;
+
         // Generate JWT
         const jwtToken = jwt.sign(
-            { id: user._id, role: user.role },
+            { id: user._id, role: user.role, profileIncomplete },
             process.env.JWT_SECRET,
             { expiresIn: '7d' }
         );
@@ -177,7 +182,8 @@ exports.verifyOTP = async (req, res) => {
                 name: user.name,
                 email: user.email,
                 role: user.role,
-                avatar: user.avatar
+                avatar: user.avatar,
+                profileIncomplete
             },
             token: jwtToken
         });
@@ -185,5 +191,61 @@ exports.verifyOTP = async (req, res) => {
     } catch (error) {
         console.error("Verify OTP Error", error);
         res.status(500).json({ message: 'Server error verifying OTP' });
+    }
+};
+
+const bcrypt = require('bcryptjs');
+
+// Complete Profile
+exports.completeProfile = async (req, res) => {
+    const { name, country, contactNumber, password } = req.body;
+    const userId = req.user.id;
+
+    try {
+        if (!password || password.length < 6) {
+            return res.status(400).json({ message: 'Password must be at least 6 characters' });
+        }
+
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(password, salt);
+
+        const user = await User.findByIdAndUpdate(
+            userId,
+            {
+                name,
+                country,
+                contactNumber,
+                password: hashedPassword
+            },
+            { new: true }
+        );
+
+        if (!user) {
+            return res.status(404).json({ message: 'User not found' });
+        }
+
+        // Generate new token without incompleteness flag
+        const token = jwt.sign(
+            { id: user._id, role: user.role },
+            process.env.JWT_SECRET,
+            { expiresIn: '7d' }
+        );
+
+        res.json({
+            user: {
+                _id: user._id,
+                name: user.name,
+                email: user.email,
+                role: user.role,
+                avatar: user.avatar,
+                country: user.country,
+                contactNumber: user.contactNumber
+            },
+            token
+        });
+
+    } catch (error) {
+        console.error("Complete Profile Error", error);
+        res.status(500).json({ message: 'Server error completing profile' });
     }
 };

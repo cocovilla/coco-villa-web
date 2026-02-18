@@ -165,7 +165,8 @@ const AdminFacilityManager = () => {
 
             {/* Table */}
             <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
+                {/* Desktop Table */}
+                <table className="min-w-full divide-y divide-gray-200 hidden md:table">
                     <thead className="bg-gray-50">
                         <tr>
                             <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Icon</th>
@@ -214,6 +215,56 @@ const AdminFacilityManager = () => {
                         ))}
                     </tbody>
                 </table>
+
+                {/* Mobile Card View */}
+                <div className="md:hidden space-y-4">
+                    {facilities.map((facility) => (
+                        <div
+                            key={facility._id}
+                            onClick={() => handleEdit(facility)}
+                            className="bg-white border boundary-gray-200 rounded-lg p-4 shadow-sm relative flex flex-col gap-3 active:scale-[0.98] transition-transform"
+                        >
+                            <div className="flex justify-between items-start">
+                                <div className="flex items-center gap-3">
+                                    <div className="p-2 bg-brand-green/10 rounded-lg text-brand-green">
+                                        <IconComponent name={facility.icon} />
+                                    </div>
+                                    <div>
+                                        <h4 className="font-bold text-gray-900">{facility.title}</h4>
+                                        {facility.isImportant && (
+                                            <span className="inline-flex items-center text-xs text-yellow-600 bg-yellow-50 px-2 py-0.5 rounded-full mt-1">
+                                                <Star size={10} className="fill-current mr-1" /> Important
+                                            </span>
+                                        )}
+                                    </div>
+                                </div>
+                                <div className="flex gap-2">
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleEdit(facility);
+                                        }}
+                                        className="p-2 text-indigo-600 bg-indigo-50 rounded-lg hover:bg-indigo-100"
+                                    >
+                                        <Edit2 size={16} />
+                                    </button>
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleDelete(facility._id);
+                                        }}
+                                        className="p-2 text-red-600 bg-red-50 rounded-lg hover:bg-red-100"
+                                    >
+                                        <Trash2 size={16} />
+                                    </button>
+                                </div>
+                            </div>
+                            <p className="text-sm text-gray-600 line-clamp-2">
+                                {facility.description}
+                            </p>
+                        </div>
+                    ))}
+                </div>
                 {loading && <p className="text-center py-4 text-gray-500">Loading...</p>}
                 {!loading && facilities.length === 0 && (
                     <p className="text-center py-4 text-gray-500">No facilities added yet.</p>

@@ -3,15 +3,26 @@ import BookingForm from '../components/BookingForm';
 import GardenGallery from '../components/GardenGallery';
 import RoomCarousel from '../components/RoomCarousel';
 import api from '../services/api';
-import { Wifi, Tv, BedDouble, ParkingCircle, Plane, Coffee, MapPin, Waves, Palmtree, Utensils, Car, ShieldCheck, Dumbbell, Sparkles } from 'lucide-react';
+import DatePicker from 'react-datepicker';
+import "react-datepicker/dist/react-datepicker.css";
+import { addDays, differenceInCalendarDays, isWithinInterval } from 'date-fns';
+import {
+    Wifi, Wind, Monitor, Coffee, Car, Waves, Utensils, Info,
+    MapPin, Palmtree, BedDouble, Tv, ParkingCircle, Plane, ShieldCheck, Dumbbell, Sparkles
+} from 'lucide-react';
 
 const iconMap = {
-    Wifi, Tv, BedDouble, ParkingCircle, Plane, Coffee, MapPin, Waves, Palmtree, Utensils, Car, ShieldCheck, Dumbbell, Sparkles
+    Wifi, Wind, Monitor, Coffee, Car, Waves, Utensils, Info,
+    MapPin, Palmtree, BedDouble, Tv, ParkingCircle, Plane, ShieldCheck, Dumbbell, Sparkles,
+    'AC': Wind, 'TV': Monitor, 'Parking': Car, 'Dining': Utensils, 'Pool': Waves, 'Internet': Wifi
 };
-import { useNavigate, Link } from 'react-router-dom'; // Assuming react-router-dom is used
+import Navbar from '../components/Navbar';
+import Footer from '../components/Footer';
+import { useNavigate, Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
 
 const Home = () => {
+    const navigate = useNavigate();
     const [experienceContent, setExperienceContent] = useState({
         description: "Nestled in a quiet coconut grove, simply a short stroll from the pristine Unawatuna beach, Coco Villa offers a private escape. Our eco-friendly design harmonizes with nature, providing a serene backdrop for your tropical getaway."
     });
@@ -21,33 +32,49 @@ const Home = () => {
     ]);
     const [user, setUser] = useState(null);
 
-    const [checkIn, setCheckIn] = useState('');
-    const [checkOut, setCheckOut] = useState('');
+    // Booking State
+    const [dateRange, setDateRange] = useState([null, null]);
+    const [startDate, endDate] = dateRange;
+    const [unavailableDates, setUnavailableDates] = useState([]);
+
+    // Derived Booking State
+    const [totalPrice, setTotalPrice] = useState(0);
+    const [nights, setNights] = useState(0);
+    const [isAvailable, setIsAvailable] = useState(null);
+
     const [adults, setAdults] = useState(2);
     const [children, setChildren] = useState(0);
     const [roomType, setRoomType] = useState(null);
+
     const [email, setEmail] = useState('');
     const [otp, setOtp] = useState('');
     const [showOtpInput, setShowOtpInput] = useState(false);
     const [isVerified, setIsVerified] = useState(false);
-    const [isAvailable, setIsAvailable] = useState(null);
-    const [checking, setChecking] = useState(false);
+
     const [authLoading, setAuthLoading] = useState(false);
+    const [bookingLoading, setBookingLoading] = useState(false);
     const [gardenImages, setGardenImages] = useState([]);
     const [roomImages, setRoomImages] = useState([]);
-    const [totalPrice, setTotalPrice] = useState(0);
-    const [nights, setNights] = useState(0);
+
     const [mapQuery, setMapQuery] = useState("6.022760,80.246185"); // Default: Marker (Villa)
-    const [displayedAmenities, setDisplayedAmenities] = useState([]); // [NEW]
+    const [displayedAmenities, setDisplayedAmenities] = useState([]);
 
     // Long Stay Feature State
     const [stayType, setStayType] = useState('short'); // 'short' or 'long'
+    const [mealPlans, setMealPlans] = useState([]);
+    const [selectedMealPlanId, setSelectedMealPlanId] = useState(null);
+    const [stayDuration, setStayDuration] = useState('1 Month');
+
+    const durationOptions = [
+        "1 Week", "2 Weeks", "3 Weeks", "1 Month", "2 Months", "3 Months",
+        "4 Months", "5 Months", "6 Months", "1 Year"
+    ];
 
     useEffect(() => {
         const storedUser = JSON.parse(localStorage.getItem('user'));
         if (storedUser) {
             setUser(storedUser);
-            if (storedUser.isVerified) setIsVerified(true);
+            setIsVerified(true);
             setEmail(storedUser.email);
         }
 
@@ -67,12 +94,28 @@ const Home = () => {
 
                 // Fetch Important Facilities
                 const facRes = await api.get('/facilities');
-                const important = facRes.data.filter(f => f.isImportant).slice(0, 6); // Get top 6 important
+                const important = facRes.data.filter(f => f.isImportant).slice(0, 6);
                 if (important.length > 0) {
                     setDisplayedAmenities(important);
                 }
 
-                // ... (existing room/image fetches)
+                // Fetch Unavailable Dates
+                const unavailRes = await api.get('/bookings/unavailable-dates');
+                const dates = unavailRes.data.map(d => ({
+                    start: new Date(d.start),
+                    end: new Date(d.end)
+                }));
+                const disabled = [];
+                dates.forEach(range => {
+                    let curr = new Date(range.start);
+                    const end = new Date(range.end);
+                    while (curr <= end) {
+                        disabled.push(new Date(curr));
+                        curr.setDate(curr.getDate() + 1);
+                    }
+                });
+                setUnavailableDates(disabled);
+
             } catch (err) {
                 console.error("Failed to fetch content", err);
             }
@@ -121,31 +164,58 @@ const Home = () => {
             }
         };
         fetchImages();
+
+        // Fetch Meal Plans
+        const fetchMealPlans = async () => {
+            try {
+                const res = await api.get('/meal-plans');
+                const activePlans = res.data.filter(p => p.isActive);
+                const roomOnlyPlan = {
+                    _id: 'room_only',
+                    name: 'Room Only',
+                    price: 0,
+                    description: 'Accommodation only, no meals included'
+                };
+
+                // Determine default plan
+                // Priority: Admin "Default" > "Room Only" (fallback)
+                const adminDefault = activePlans.find(p => p.isDefault);
+                const defaultPlanId = adminDefault ? adminDefault._id : 'room_only';
+
+                setMealPlans([roomOnlyPlan, ...activePlans]);
+                setSelectedMealPlanId(defaultPlanId);
+            } catch (err) {
+                console.error("Failed to fetch meal plans", err);
+                // Fallback
+                const roomOnlyPlan = {
+                    _id: 'room_only',
+                    name: 'Room Only',
+                    price: 0,
+                    description: 'Accommodation only, no meals included'
+                };
+                setMealPlans([roomOnlyPlan]);
+                setSelectedMealPlanId('room_only');
+            }
+        };
+        fetchMealPlans();
     }, []);
 
-    const handleCheckAvailability = async () => {
-        if (!checkIn || !checkOut) {
-            toast.error("Please select check-in and check-out dates");
-            return;
-        }
-        setChecking(true);
-        try {
-            const res = await api.get(`/bookings/check-availability?checkIn=${checkIn}&checkOut=${checkOut}`);
-            setIsAvailable(res.data.available);
-            if (!res.data.available) {
-                toast.error("Sorry, these dates are not available.");
-            } else if (roomType) {
-                const n = Math.ceil((new Date(checkOut) - new Date(checkIn)) / (1000 * 60 * 60 * 24));
-                setNights(n);
-                setTotalPrice(n * roomType.pricePerNight);
+    // Price Calculation & Availability Logic
+    useEffect(() => {
+        if (stayType === 'short' && startDate && endDate && roomType) {
+            const nightsCount = differenceInCalendarDays(endDate, startDate);
+            if (nightsCount > 0) {
+                setNights(nightsCount);
+                const selectedPlan = mealPlans.find(p => p._id === selectedMealPlanId);
+                const mealPrice = selectedPlan ? selectedPlan.price : 0;
+                setTotalPrice(nightsCount * (roomType.pricePerNight + mealPrice));
+                setIsAvailable(true);
+            } else {
+                setTotalPrice(0);
+                setIsAvailable(false);
             }
-        } catch (err) {
-            console.error("Failed to check availability", err);
-            toast.error("Error checking availability");
-        } finally {
-            setChecking(false);
         }
-    };
+    }, [startDate, endDate, roomType, stayType, selectedMealPlanId, mealPlans]);
 
     const handleSendOtp = async () => {
         if (!email) {
@@ -178,7 +248,13 @@ const Home = () => {
             localStorage.setItem('user', JSON.stringify(res.data.user));
             setUser(res.data.user);
             setIsVerified(true);
-            toast.success("Email verified! You can now complete your booking.");
+
+            if (res.data.user.profileIncomplete) {
+                toast.success("Email verified! Please complete your profile.");
+                navigate('/profile-setup');
+            } else {
+                toast.success("Email verified! You can now complete your booking.");
+            }
         } catch (err) {
             console.error("Verify OTP failed", err);
             toast.error("Invalid code. Please try again.");
@@ -187,58 +263,124 @@ const Home = () => {
         }
     };
 
+    const handleGoogleLoginSuccess = async (response) => {
+        setAuthLoading(true);
+        try {
+            const res = await api.post('/auth/google', { token: response.credential });
+            localStorage.setItem('token', res.data.token);
+            localStorage.setItem('user', JSON.stringify(res.data.user));
+            setUser(res.data.user);
+            setIsVerified(true);
+
+            if (res.data.user.profileIncomplete) {
+                toast.success("Signed in! Please complete your profile.");
+                navigate('/profile-setup');
+            } else {
+                toast.success("Signed in successfully!");
+            }
+        } catch (err) {
+            console.error("Google Login Failed", err);
+            toast.error("Google sign-in failed.");
+        } finally {
+            setAuthLoading(false);
+        }
+    };
+
+    // Google Auth Initialization
+    useEffect(() => {
+        const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || "YOUR_GOOGLE_CLIENT_ID";
+
+        /* global google */
+        if (typeof google !== 'undefined' && !isVerified) {
+            try {
+                google.accounts.id.initialize({
+                    client_id: clientId,
+                    callback: handleGoogleLoginSuccess
+                });
+
+                const btnDiv = document.getElementById("googleSigninBtn");
+                if (btnDiv) {
+                    google.accounts.id.renderButton(
+                        btnDiv,
+                        { theme: "outline", size: "large", width: "100%" }
+                    );
+                }
+            } catch (error) {
+                console.error("Google Auth Error:", error);
+            }
+        }
+    }, [isVerified, stayType, isAvailable, showOtpInput]);
+
+    const [showConfirmation, setShowConfirmation] = useState(false);
+
     const handleBooking = async () => {
         if (!isVerified) {
             toast.error("Please verify your email first.");
             return;
         }
 
-        // Long Stay Inquiry Logic
+        // Validation for Long Stay
         if (stayType === 'long') {
             if (!email) {
                 toast.error("Please enter your email for the quotation.");
                 return;
             }
-            try {
+        }
+        // Validation for Short Stay
+        else {
+            if (!startDate || !endDate) {
+                toast.error("Please select a date range.");
+                return;
+            }
+        }
+
+        setShowConfirmation(true);
+    };
+
+    const confirmBooking = async () => {
+        setBookingLoading(true);
+        try {
+            if (stayType === 'long') {
                 await api.post('/bookings', {
                     roomTypeId: roomType._id,
                     guests: adults + children,
                     type: 'long_stay_inquiry',
-                    email: email, // Use verified email
-                    message: "Long Stay Inquiry"
+                    email: email,
+                    duration: stayDuration,
+                    message: `Long Stay Inquiry for ${stayDuration}`
                 });
-                toast.success('Quotation request sent! We will contact you soon.');
-            } catch (err) {
-                console.error("Inquiry failed", err);
-                toast.error("Failed to send inquiry.");
+                toast.success('Quotation request sent! Redirecting...');
+            } else {
+                const selectedPlan = mealPlans.find(p => p._id === selectedMealPlanId);
+                await api.post('/bookings', {
+                    roomTypeId: roomType._id,
+                    checkIn: startDate,
+                    checkOut: endDate,
+                    guests: adults + children,
+                    mealPlan: selectedPlan ? selectedPlan.name : 'Standard',
+                    mealPlanPrice: selectedPlan ? selectedPlan.price : 0,
+                    totalPrice,
+                    message: "Booking request from website"
+                });
+                toast.success('Booking request sent! Redirecting...');
             }
-            return;
-        }
 
-        // Standard Short Stay Logic
-        if (!isAvailable) {
-            toast.error("Please check availability first.");
-            return;
-        }
-
-        try {
-            await api.post('/bookings', {
-                roomTypeId: roomType._id,
-                checkIn,
-                checkOut,
-                guests: adults + children,
-                totalPrice,
-                message: "Booking request from website"
-            });
-            toast.success('Booking request sent! Waiting for admin approval.');
-            // Reset
-            setCheckIn('');
-            setCheckOut('');
+            // Reset State
+            setDateRange([null, null]);
+            setTotalPrice(0);
             setIsAvailable(null);
-            // Optional: Don't logout user so they can see their booking
+            setAdults(2);
+            setChildren(0);
+            setShowConfirmation(false);
+
+            // Redirect to My Bookings
+            setTimeout(() => navigate('/my-bookings'), 1500);
+
         } catch (err) {
             console.error("Booking failed", err);
-            toast.error(err.response?.data?.message || 'Booking failed');
+            toast.error(err.response?.data?.message || 'Request failed');
+        } finally {
+            setBookingLoading(false);
         }
     };
 
@@ -416,32 +558,57 @@ const Home = () => {
 
                                     {/* Date Inputs (Short Stay Only) */}
                                     {stayType === 'short' && (
-                                        <>
-                                            <div>
-                                                <label className="block text-sm uppercase tracking-wider mb-2 opacity-80">Check In</label>
-                                                <input
-                                                    type="date"
-                                                    value={checkIn}
-                                                    onChange={(e) => {
-                                                        setCheckIn(e.target.value);
-                                                        setIsAvailable(null); // Reset availability on change
-                                                    }}
-                                                    className="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-3 text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-brand-brown"
-                                                />
+                                        <div className="mb-6">
+                                            <label className="block text-sm uppercase tracking-wider mb-2 opacity-80">Select Dates</label>
+                                            <DatePicker
+                                                selectsRange={true}
+                                                startDate={startDate}
+                                                endDate={endDate}
+                                                onChange={(update) => {
+                                                    setDateRange(update);
+                                                }}
+                                                excludeDates={unavailableDates}
+                                                minDate={new Date()}
+                                                placeholderText="Check-in - Check-out"
+                                                className="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-3 text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-brand-brown"
+                                                dateFormat="MMM d, yyyy"
+                                            />
+                                            {startDate && endDate && isAvailable && (
+                                                <p className="text-white/80 text-sm mt-2 flex items-center font-medium">
+                                                    <span className="mr-1">✓</span> Dates are available!
+                                                </p>
+                                            )}
+                                        </div>
+                                    )}
+
+                                    {stayType === 'short' && mealPlans.length > 0 && (
+                                        <div className="mb-6">
+                                            <div className="space-y-3">
+                                                <label className="block text-sm uppercase tracking-wider mb-2 opacity-80">Meal Plan</label>
+                                                {mealPlans.map(plan => (
+                                                    <div
+                                                        key={plan._id}
+                                                        onClick={() => setSelectedMealPlanId(plan._id)}
+                                                        className={`flex items-center justify-between p-4 rounded-lg border cursor-pointer transition-all ${selectedMealPlanId === plan._id
+                                                            ? 'bg-white/20 border-white ring-1 ring-white'
+                                                            : 'bg-white/5 border-white/10 hover:bg-white/10'
+                                                            }`}
+                                                    >
+                                                        <div>
+                                                            <span className="font-bold text-sm block text-white">{plan.name}</span>
+                                                            <span className="text-xs text-white/60">{plan.description}</span>
+                                                        </div>
+                                                        <div className="text-right">
+                                                            {plan.price > 0 ? (
+                                                                <span className="text-sm font-bold text-white">+${plan.price} <span className="text-[10px] font-normal opacity-70">/night</span></span>
+                                                            ) : (
+                                                                <span className="text-sm font-bold text-white">Included</span>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                ))}
                                             </div>
-                                            <div>
-                                                <label className="block text-sm uppercase tracking-wider mb-2 opacity-80">Check Out</label>
-                                                <input
-                                                    type="date"
-                                                    value={checkOut}
-                                                    onChange={(e) => {
-                                                        setCheckOut(e.target.value);
-                                                        setIsAvailable(null);
-                                                    }}
-                                                    className="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-3 text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-brand-brown"
-                                                />
-                                            </div>
-                                        </>
+                                        </div>
                                     )}
                                     <div>
                                         <div className="grid grid-cols-2 gap-4">
@@ -483,26 +650,15 @@ const Home = () => {
                                     </div>
 
                                     {/* Availability Logic (Short Stay Only) */}
-                                    {stayType === 'short' && (
+                                    {stayType === 'short' && startDate && endDate && (
                                         <>
-                                            {isAvailable === null ? (
-                                                <button
-                                                    onClick={handleCheckAvailability}
-                                                    disabled={checking}
-                                                    className="w-full bg-white text-brand-green font-bold uppercase tracking-widest py-4 rounded-lg hover:bg-brand-brown hover:text-white transition shadow-lg mt-4 disabled:opacity-50"
-                                                >
-                                                    {checking ? 'Checking...' : 'Check Availability'}
-                                                </button>
-                                            ) : !isAvailable ? (
+                                            {!isAvailable ? (
                                                 <div className="bg-red-500/20 border border-red-500/50 text-red-100 px-4 py-3 rounded-lg text-center font-medium">
                                                     ✕ Dates Not Available
                                                 </div>
                                             ) : (
                                                 /* Available - Show Booking/Auth Flow */
                                                 <div className="space-y-4 animate-fadeIn">
-                                                    <div className="bg-green-500/20 border border-green-500/50 text-green-100 px-4 py-3 rounded-lg text-center font-medium mb-4">
-                                                        ✓ Dates Available
-                                                    </div>
 
                                                     {/* Price Breakdown */}
                                                     <div className="bg-white/10 rounded-lg p-4 mb-4 border border-white/20 backdrop-blur-sm">
@@ -519,9 +675,21 @@ const Home = () => {
                                                     {/* Auth Section if not verified */}
                                                     {!isVerified && (
                                                         <div className="p-4 bg-white/10 rounded-lg border border-white/20">
-                                                            <p className="text-sm mb-3">Please verify your email to continue:</p>
+                                                            <p className="text-sm mb-3">Sign in to continue:</p>
+
+                                                            {/* Google Sign In */}
+                                                            <div className="mb-4">
+                                                                <div id="googleSigninBtn" className="w-full flex justify-center"></div>
+                                                            </div>
+
+                                                            <div className="relative flex py-2 items-center">
+                                                                <div className="flex-grow border-t border-white/20"></div>
+                                                                <span className="flex-shrink-0 mx-4 text-white/50 text-xs uppercase">Or</span>
+                                                                <div className="flex-grow border-t border-white/20"></div>
+                                                            </div>
+
                                                             {!showOtpInput ? (
-                                                                <div className="flex gap-2">
+                                                                <div className="flex gap-2 mt-2">
                                                                     <input
                                                                         type="email"
                                                                         placeholder="Enter your email"
@@ -538,7 +706,7 @@ const Home = () => {
                                                                     </button>
                                                                 </div>
                                                             ) : (
-                                                                <div className="flex gap-2">
+                                                                <div className="flex gap-2 mt-2">
                                                                     <input
                                                                         type="text"
                                                                         placeholder="Enter code"
@@ -562,9 +730,10 @@ const Home = () => {
                                                     {isVerified && (
                                                         <button
                                                             onClick={handleBooking}
-                                                            className="w-full bg-brand-brown text-white font-bold uppercase tracking-widest py-4 rounded-lg hover:bg-white hover:text-brand-green transition shadow-lg animate-pulse"
+                                                            disabled={bookingLoading}
+                                                            className={`w-full bg-brand-brown text-white font-bold uppercase tracking-widest py-4 rounded-lg transition shadow-lg ${bookingLoading ? 'opacity-75 cursor-not-allowed' : 'hover:bg-white hover:text-brand-green animate-pulse'}`}
                                                         >
-                                                            Confirm Booking Request
+                                                            {bookingLoading ? 'Processing Request...' : 'Confirm Booking Request'}
                                                         </button>
                                                     )}
                                                 </div>
@@ -578,16 +747,43 @@ const Home = () => {
                                             {/* Helper Text */}
                                             <div className="bg-brand-brown/20 rounded-lg p-4 mb-4 border border-brand-brown/40">
                                                 <p className="text-sm font-medium text-center text-white/90">
-                                                    Valid for extended stays of 1 month to 2 years.
+                                                    Valid for extended stays of 1 week to 1 year.
                                                 </p>
                                             </div>
 
+                                            {/* Duration Selection */}
+                                            <div className="mb-4">
+                                                <label className="block text-sm uppercase tracking-wider mb-2 opacity-80">Duration</label>
+                                                <select
+                                                    value={stayDuration}
+                                                    onChange={(e) => setStayDuration(e.target.value)}
+                                                    className="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-3 text-white focus:outline-none focus:ring-2 focus:ring-brand-brown [&>option]:text-gray-900"
+                                                >
+                                                    {durationOptions.map((opt) => (
+                                                        <option key={opt} value={opt}>{opt}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+
                                             {/* Auth Section if not verified */}
-                                            {!isVerified ? (
+                                            {!isVerified && (
                                                 <div className="p-4 bg-white/10 rounded-lg border border-white/20">
-                                                    <p className="text-sm mb-3">Please verify your email to continue:</p>
+                                                    <p className="text-sm mb-3">Sign in to continue:</p>
+
+                                                    {/* Google Sign In */}
+                                                    <div className="mb-4">
+                                                        <div id="googleSigninBtn" className="w-full flex justify-center"></div>
+                                                    </div>
+
+                                                    <div className="relative flex py-2 items-center">
+                                                        <div className="flex-grow border-t border-white/20"></div>
+                                                        <span className="flex-shrink-0 mx-4 text-white/50 text-xs uppercase">Or</span>
+                                                        <div className="flex-grow border-t border-white/20"></div>
+                                                    </div>
+
+                                                    {/* Manual Email */}
                                                     {!showOtpInput ? (
-                                                        <div className="flex gap-2">
+                                                        <div className="flex gap-2 mt-2">
                                                             <input
                                                                 type="email"
                                                                 placeholder="Enter your email"
@@ -604,7 +800,7 @@ const Home = () => {
                                                             </button>
                                                         </div>
                                                     ) : (
-                                                        <div className="flex gap-2">
+                                                        <div className="flex gap-2 mt-2">
                                                             <input
                                                                 type="text"
                                                                 placeholder="Enter code"
@@ -622,28 +818,29 @@ const Home = () => {
                                                         </div>
                                                     )}
                                                 </div>
-                                            ) : (
-                                                /* Verified User Section */
-                                                <div className="space-y-4">
-                                                    <div className="bg-green-500/10 border border-green-500/30 p-3 rounded-lg flex items-center gap-2">
-                                                        <span className="text-green-400 font-bold">✓</span>
-                                                        <span className="text-white text-sm">Quotation will be sent to: <strong>{email}</strong></span>
-                                                    </div>
+                                            )}
 
+                                            {/* Verified User Section */}
+                                            {isVerified && (
+                                                <div className="space-y-4">
                                                     <button
                                                         onClick={handleBooking}
-                                                        className="w-full bg-brand-brown text-white font-bold uppercase tracking-widest py-4 rounded-lg hover:bg-white hover:text-brand-green transition shadow-lg animate-pulse"
+                                                        disabled={bookingLoading}
+                                                        className={`w-full bg-brand-brown text-white font-bold uppercase tracking-widest py-4 rounded-lg transition shadow-lg ${bookingLoading ? 'opacity-75 cursor-not-allowed' : 'hover:bg-white hover:text-brand-green animate-pulse'}`}
                                                     >
-                                                        Request Price Quotation
+                                                        {bookingLoading ? 'Sending Request...' : 'Request Price Quotation'}
                                                     </button>
+                                                    <p className="text-center text-xs opacity-70 text-white">
+                                                        Response will be sent to <strong>{email}</strong>
+                                                    </p>
                                                 </div>
                                             )}
+
+                                            <p className="text-center text-xs opacity-60 mt-4">
+                                                No payment required now. We will confirm your stay within 24 hours.
+                                            </p>
                                         </div>
                                     )}
-
-                                    <p className="text-center text-xs opacity-60 mt-4">
-                                        No payment required now. We will confirm your stay within 24 hours.
-                                    </p>
                                 </div>
                             </div>
                         </div>
@@ -748,6 +945,92 @@ const Home = () => {
                 </div>
 
             </div>
+            {/* Confirmation Modal */}
+            {showConfirmation && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
+                    <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden transform transition-all scale-100">
+                        <div className="p-6">
+                            <h3 className="text-2xl font-serif text-brand-dark mb-2">
+                                {stayType === 'short' ? 'Confirm Booking Request' : 'Confirm Quotation Request'}
+                            </h3>
+                            <p className="text-gray-600 mb-6 text-sm">
+                                {stayType === 'short'
+                                    ? "Please review your booking details before submitting. We will review your request and confirm availability shortly."
+                                    : "Please review your inquiry details. We will send a customized price quotation to your email."
+                                }
+                            </p>
+
+                            <div className="bg-brand-bg/50 rounded-xl p-4 mb-6 space-y-3 border border-brand-brown/10">
+                                <div className="flex justify-between text-sm">
+                                    <span className="text-gray-500">Type</span>
+                                    <span className="font-bold text-brand-dark uppercase tracking-wider">{stayType === 'short' ? 'Short Stay' : 'Long Stay'}</span>
+                                </div>
+
+                                {stayType === 'short' ? (
+                                    <>
+                                        <div className="flex justify-between text-sm">
+                                            <span className="text-gray-500">Dates</span>
+                                            <span className="font-medium text-brand-dark">
+                                                {startDate?.toLocaleDateString()} - {endDate?.toLocaleDateString()}
+                                            </span>
+                                        </div>
+                                        <div className="flex justify-between text-sm">
+                                            <span className="text-gray-500">Meal Plan</span>
+                                            <span className="font-medium text-brand-dark capitalize">
+                                                {mealPlans.find(p => p._id === selectedMealPlanId)?.name || 'Standard'}
+                                            </span>
+                                        </div>
+                                        <div className="flex justify-between text-sm">
+                                            <span className="text-gray-500">Guests</span>
+                                            <span className="font-medium text-brand-dark">{adults} Adults, {children} Children</span>
+                                        </div>
+                                        <div className="flex justify-between text-base pt-2 border-t border-brand-brown/10">
+                                            <span className="font-bold text-brand-dark">Total</span>
+                                            <span className="font-bold text-brand-green">${totalPrice}</span>
+                                        </div>
+                                    </>
+                                ) : (
+                                    <>
+                                        <div className="flex justify-between text-sm">
+                                            <span className="text-gray-500">Duration</span>
+                                            <span className="font-medium text-brand-dark">{stayDuration}</span>
+                                        </div>
+                                        <div className="flex justify-between text-sm">
+                                            <span className="text-gray-500">Email</span>
+                                            <span className="font-medium text-brand-dark truncate max-w-[200px]">{email}</span>
+                                        </div>
+                                    </>
+                                )}
+                            </div>
+
+                            <div className="flex gap-3">
+                                <button
+                                    onClick={() => setShowConfirmation(false)}
+                                    disabled={bookingLoading}
+                                    className="flex-1 px-4 py-3 bg-gray-100 text-gray-700 font-bold uppercase tracking-widest text-xs rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={confirmBooking}
+                                    disabled={bookingLoading}
+                                    className="flex-1 px-4 py-3 bg-brand-brown text-white font-bold uppercase tracking-widest text-xs rounded-lg hover:bg-brand-dark transition-colors shadow-lg disabled:opacity-50 flex justify-center items-center gap-2"
+                                >
+                                    {bookingLoading ? (
+                                        <>
+                                            <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></span>
+                                            <span>Processing...</span>
+                                        </>
+                                    ) : (
+                                        <span>Confirm & Submit</span>
+                                    )}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
+
         </div>
     );
 };
