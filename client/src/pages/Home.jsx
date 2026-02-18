@@ -3,8 +3,12 @@ import BookingForm from '../components/BookingForm';
 import GardenGallery from '../components/GardenGallery';
 import RoomCarousel from '../components/RoomCarousel';
 import api from '../services/api';
-import { Wifi, Tv, BedDouble, ParkingCircle, Plane, Coffee } from 'lucide-react';
-import { useNavigate } from 'react-router-dom'; // Assuming react-router-dom is used
+import { Wifi, Tv, BedDouble, ParkingCircle, Plane, Coffee, MapPin, Waves, Palmtree, Utensils, Car, ShieldCheck, Dumbbell, Sparkles } from 'lucide-react';
+
+const iconMap = {
+    Wifi, Tv, BedDouble, ParkingCircle, Plane, Coffee, MapPin, Waves, Palmtree, Utensils, Car, ShieldCheck, Dumbbell, Sparkles
+};
+import { useNavigate, Link } from 'react-router-dom'; // Assuming react-router-dom is used
 import toast from 'react-hot-toast';
 
 const Home = () => {
@@ -33,6 +37,11 @@ const Home = () => {
     const [roomImages, setRoomImages] = useState([]);
     const [totalPrice, setTotalPrice] = useState(0);
     const [nights, setNights] = useState(0);
+    const [mapQuery, setMapQuery] = useState("6.022760,80.246185"); // Default: Marker (Villa)
+    const [displayedAmenities, setDisplayedAmenities] = useState([]); // [NEW]
+
+    // Long Stay Feature State
+    const [stayType, setStayType] = useState('short'); // 'short' or 'long'
 
     useEffect(() => {
         const storedUser = JSON.parse(localStorage.getItem('user'));
@@ -54,6 +63,13 @@ const Home = () => {
                 }
                 if (expRes.data.images && expRes.data.images.length > 0) {
                     setExperienceImages(expRes.data.images.map(img => `http://localhost:5000${img.imageUrl}`));
+                }
+
+                // Fetch Important Facilities
+                const facRes = await api.get('/facilities');
+                const important = facRes.data.filter(f => f.isImportant).slice(0, 6); // Get top 6 important
+                if (important.length > 0) {
+                    setDisplayedAmenities(important);
                 }
 
                 // ... (existing room/image fetches)
@@ -176,16 +192,36 @@ const Home = () => {
             toast.error("Please verify your email first.");
             return;
         }
+
+        // Long Stay Inquiry Logic
+        if (stayType === 'long') {
+            if (!email) {
+                toast.error("Please enter your email for the quotation.");
+                return;
+            }
+            try {
+                await api.post('/bookings', {
+                    roomTypeId: roomType._id,
+                    guests: adults + children,
+                    type: 'long_stay_inquiry',
+                    email: email, // Use verified email
+                    message: "Long Stay Inquiry"
+                });
+                toast.success('Quotation request sent! We will contact you soon.');
+            } catch (err) {
+                console.error("Inquiry failed", err);
+                toast.error("Failed to send inquiry.");
+            }
+            return;
+        }
+
+        // Standard Short Stay Logic
         if (!isAvailable) {
             toast.error("Please check availability first.");
             return;
         }
 
         try {
-            // Calculate total price (rough estimate for frontend, backend should validate)
-            // const nights = (new Date(checkOut) - new Date(checkIn)) / (1000 * 60 * 60 * 24);
-            // const totalPrice = nights * roomType.pricePerNight; // Already calculated in state
-
             await api.post('/bookings', {
                 roomTypeId: roomType._id,
                 checkIn,
@@ -299,79 +335,114 @@ const Home = () => {
                                 </p>
 
                                 <div className="grid grid-cols-2 gap-y-6 gap-x-4 mb-10">
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 rounded-full bg-brand-green/10 flex items-center justify-center text-brand-green shrink-0">
-                                            <Coffee size={20} />
-                                        </div>
-                                        <span className="text-sm font-medium text-gray-700">Breakfast</span>
-                                    </div>
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 rounded-full bg-brand-green/10 flex items-center justify-center text-brand-green shrink-0">
-                                            <ParkingCircle size={20} />
-                                        </div>
-                                        <span className="text-sm font-medium text-gray-700">Free Parking</span>
-                                    </div>
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 rounded-full bg-brand-green/10 flex items-center justify-center text-brand-green shrink-0">
-                                            <Plane size={20} />
-                                        </div>
-                                        <span className="text-sm font-medium text-gray-700">Airport Shuttle</span>
-                                    </div>
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 rounded-full bg-brand-green/10 flex items-center justify-center text-brand-green shrink-0">
-                                            <Wifi size={20} />
-                                        </div>
-                                        <span className="text-sm font-medium text-gray-700">Free Wifi</span>
-                                    </div>
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 rounded-full bg-brand-green/10 flex items-center justify-center text-brand-green shrink-0">
-                                            <Tv size={20} />
-                                        </div>
-                                        <span className="text-sm font-medium text-gray-700">TV</span>
-                                    </div>
-                                    <div className="flex items-center gap-3">
-                                        <div className="w-10 h-10 rounded-full bg-brand-green/10 flex items-center justify-center text-brand-green shrink-0">
-                                            <BedDouble size={20} />
-                                        </div>
-                                        <span className="text-sm font-medium text-gray-700">King Bed</span>
-                                    </div>
+                                    {displayedAmenities.length > 0 ? (
+                                        displayedAmenities.map((amenity, index) => {
+                                            const Icon = iconMap[amenity.icon] || Wifi;
+                                            return (
+                                                <div key={index} className="flex items-center gap-3">
+                                                    <div className="w-10 h-10 rounded-full bg-brand-green/10 flex items-center justify-center text-brand-green shrink-0">
+                                                        <Icon size={20} />
+                                                    </div>
+                                                    <span className="text-sm font-medium text-gray-700">{amenity.title}</span>
+                                                </div>
+                                            );
+                                        })
+                                    ) : (
+                                        // Fallback if no important amenities
+                                        <>
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-10 h-10 rounded-full bg-brand-green/10 flex items-center justify-center text-brand-green shrink-0">
+                                                    <Wifi size={20} />
+                                                </div>
+                                                <span className="text-sm font-medium text-gray-700">Free Wifi</span>
+                                            </div>
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-10 h-10 rounded-full bg-brand-green/10 flex items-center justify-center text-brand-green shrink-0">
+                                                    <Tv size={20} />
+                                                </div>
+                                                <span className="text-sm font-medium text-gray-700">TV</span>
+                                            </div>
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-10 h-10 rounded-full bg-brand-green/10 flex items-center justify-center text-brand-green shrink-0">
+                                                    <BedDouble size={20} />
+                                                </div>
+                                                <span className="text-sm font-medium text-gray-700">King Bed</span>
+                                            </div>
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-10 h-10 rounded-full bg-brand-green/10 flex items-center justify-center text-brand-green shrink-0">
+                                                    <Waves size={20} />
+                                                </div>
+                                                <span className="text-sm font-medium text-gray-700">Pool Access</span>
+                                            </div>
+                                        </>
+                                    )}
                                 </div>
 
                                 <div className="flex items-baseline gap-2 mb-8">
                                     <span className="text-3xl font-bold text-brand-dark">${roomType?.pricePerNight}</span>
                                     <span className="text-gray-500">/ night</span>
                                 </div>
+
+                                <Link
+                                    to="/facilities"
+                                    className="inline-block relative z-10 text-brand-brown font-bold uppercase tracking-widest text-sm hover:text-brand-green transition-colors border-b-2 border-brand-brown/20 pb-1 hover:border-brand-green cursor-pointer"
+                                >
+                                    View All Facilities & Services
+                                </Link>
                             </div>
 
                             {/* Booking Form */}
                             <div className="p-6 md:p-12 flex flex-col justify-center bg-brand-green text-white">
                                 <h3 className="text-2xl font-serif mb-6">Book Your Escape</h3>
                                 <div className="space-y-6">
-                                    {/* Date & Guest Inputs */}
-                                    <div>
-                                        <label className="block text-sm uppercase tracking-wider mb-2 opacity-80">Check In</label>
-                                        <input
-                                            type="date"
-                                            value={checkIn}
-                                            onChange={(e) => {
-                                                setCheckIn(e.target.value);
-                                                setIsAvailable(null); // Reset availability on change
-                                            }}
-                                            className="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-3 text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-brand-brown"
-                                        />
+                                    {/* Stay Type Toggle */}
+                                    <div className="flex bg-white/10 rounded-lg p-1 mb-6 relative">
+                                        <div
+                                            className={`absolute top-1 bottom-1 w-[calc(50%-4px)] bg-brand-brown rounded-md transition-all duration-300 ${stayType === 'short' ? 'left-1' : 'left-[calc(50%)]'}`}
+                                        ></div>
+                                        <button
+                                            onClick={() => setStayType('short')}
+                                            className={`flex-1 py-2 text-sm font-bold uppercase tracking-widest relative z-10 transition-colors ${stayType === 'short' ? 'opacity-100' : 'opacity-70'}`}
+                                        >
+                                            Short Stay
+                                        </button>
+                                        <button
+                                            onClick={() => setStayType('long')}
+                                            className={`flex-1 py-2 text-sm font-bold uppercase tracking-widest relative z-10 transition-colors ${stayType === 'long' ? 'opacity-100' : 'opacity-70'}`}
+                                        >
+                                            Long Stay
+                                        </button>
                                     </div>
-                                    <div>
-                                        <label className="block text-sm uppercase tracking-wider mb-2 opacity-80">Check Out</label>
-                                        <input
-                                            type="date"
-                                            value={checkOut}
-                                            onChange={(e) => {
-                                                setCheckOut(e.target.value);
-                                                setIsAvailable(null);
-                                            }}
-                                            className="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-3 text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-brand-brown"
-                                        />
-                                    </div>
+
+                                    {/* Date Inputs (Short Stay Only) */}
+                                    {stayType === 'short' && (
+                                        <>
+                                            <div>
+                                                <label className="block text-sm uppercase tracking-wider mb-2 opacity-80">Check In</label>
+                                                <input
+                                                    type="date"
+                                                    value={checkIn}
+                                                    onChange={(e) => {
+                                                        setCheckIn(e.target.value);
+                                                        setIsAvailable(null); // Reset availability on change
+                                                    }}
+                                                    className="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-3 text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-brand-brown"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-sm uppercase tracking-wider mb-2 opacity-80">Check Out</label>
+                                                <input
+                                                    type="date"
+                                                    value={checkOut}
+                                                    onChange={(e) => {
+                                                        setCheckOut(e.target.value);
+                                                        setIsAvailable(null);
+                                                    }}
+                                                    className="w-full bg-white/10 border border-white/20 rounded-lg px-4 py-3 text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-brand-brown"
+                                                />
+                                            </div>
+                                        </>
+                                    )}
                                     <div>
                                         <div className="grid grid-cols-2 gap-4">
                                             <div>
@@ -411,40 +482,108 @@ const Home = () => {
                                         </div>
                                     </div>
 
-                                    {/* Availability Logic */}
-                                    {isAvailable === null ? (
-                                        <button
-                                            onClick={handleCheckAvailability}
-                                            disabled={checking}
-                                            className="w-full bg-white text-brand-green font-bold uppercase tracking-widest py-4 rounded-lg hover:bg-brand-brown hover:text-white transition shadow-lg mt-4 disabled:opacity-50"
-                                        >
-                                            {checking ? 'Checking...' : 'Check Availability'}
-                                        </button>
-                                    ) : !isAvailable ? (
-                                        <div className="bg-red-500/20 border border-red-500/50 text-red-100 px-4 py-3 rounded-lg text-center font-medium">
-                                            ✕ Dates Not Available
-                                        </div>
-                                    ) : (
-                                        /* Available - Show Booking/Auth Flow */
-                                        <div className="space-y-4 animate-fadeIn">
-                                            <div className="bg-green-500/20 border border-green-500/50 text-green-100 px-4 py-3 rounded-lg text-center font-medium mb-4">
-                                                ✓ Dates Available
-                                            </div>
+                                    {/* Availability Logic (Short Stay Only) */}
+                                    {stayType === 'short' && (
+                                        <>
+                                            {isAvailable === null ? (
+                                                <button
+                                                    onClick={handleCheckAvailability}
+                                                    disabled={checking}
+                                                    className="w-full bg-white text-brand-green font-bold uppercase tracking-widest py-4 rounded-lg hover:bg-brand-brown hover:text-white transition shadow-lg mt-4 disabled:opacity-50"
+                                                >
+                                                    {checking ? 'Checking...' : 'Check Availability'}
+                                                </button>
+                                            ) : !isAvailable ? (
+                                                <div className="bg-red-500/20 border border-red-500/50 text-red-100 px-4 py-3 rounded-lg text-center font-medium">
+                                                    ✕ Dates Not Available
+                                                </div>
+                                            ) : (
+                                                /* Available - Show Booking/Auth Flow */
+                                                <div className="space-y-4 animate-fadeIn">
+                                                    <div className="bg-green-500/20 border border-green-500/50 text-green-100 px-4 py-3 rounded-lg text-center font-medium mb-4">
+                                                        ✓ Dates Available
+                                                    </div>
 
-                                            {/* Price Breakdown */}
-                                            <div className="bg-white/10 rounded-lg p-4 mb-4 border border-white/20 backdrop-blur-sm">
-                                                <div className="flex justify-between text-sm mb-2 text-white/90">
-                                                    <span>{roomType?.title} x {nights} nights</span>
-                                                    <span>${roomType?.pricePerNight * nights}</span>
+                                                    {/* Price Breakdown */}
+                                                    <div className="bg-white/10 rounded-lg p-4 mb-4 border border-white/20 backdrop-blur-sm">
+                                                        <div className="flex justify-between text-sm mb-2 text-white/90">
+                                                            <span>{roomType?.title} x {nights} nights</span>
+                                                            <span>${roomType?.pricePerNight * nights}</span>
+                                                        </div>
+                                                        <div className="flex justify-between text-lg font-bold border-t border-white/20 pt-2 mt-2 text-white">
+                                                            <span>Total</span>
+                                                            <span>${totalPrice}</span>
+                                                        </div>
+                                                    </div>
+
+                                                    {/* Auth Section if not verified */}
+                                                    {!isVerified && (
+                                                        <div className="p-4 bg-white/10 rounded-lg border border-white/20">
+                                                            <p className="text-sm mb-3">Please verify your email to continue:</p>
+                                                            {!showOtpInput ? (
+                                                                <div className="flex gap-2">
+                                                                    <input
+                                                                        type="email"
+                                                                        placeholder="Enter your email"
+                                                                        value={email}
+                                                                        onChange={(e) => setEmail(e.target.value)}
+                                                                        className="flex-1 bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-brand-brown"
+                                                                    />
+                                                                    <button
+                                                                        onClick={handleSendOtp}
+                                                                        disabled={authLoading}
+                                                                        className="bg-brand-brown px-4 py-2 rounded-lg text-sm font-bold hover:bg-white hover:text-brand-green transition"
+                                                                    >
+                                                                        {authLoading ? 'Sending...' : 'Verify'}
+                                                                    </button>
+                                                                </div>
+                                                            ) : (
+                                                                <div className="flex gap-2">
+                                                                    <input
+                                                                        type="text"
+                                                                        placeholder="Enter code"
+                                                                        value={otp}
+                                                                        onChange={(e) => setOtp(e.target.value)}
+                                                                        className="flex-1 bg-white/10 border border-white/20 rounded-lg px-3 py-2 text-white placeholder-white/50 focus:outline-none focus:ring-2 focus:ring-brand-brown"
+                                                                    />
+                                                                    <button
+                                                                        onClick={handleVerifyOtp}
+                                                                        disabled={authLoading}
+                                                                        className="bg-brand-brown px-4 py-2 rounded-lg text-sm font-bold hover:bg-white hover:text-brand-green transition"
+                                                                    >
+                                                                        {authLoading ? 'Verifying...' : 'Confirm'}
+                                                                    </button>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    )}
+
+                                                    {/* Final Booking Button */}
+                                                    {isVerified && (
+                                                        <button
+                                                            onClick={handleBooking}
+                                                            className="w-full bg-brand-brown text-white font-bold uppercase tracking-widest py-4 rounded-lg hover:bg-white hover:text-brand-green transition shadow-lg animate-pulse"
+                                                        >
+                                                            Confirm Booking Request
+                                                        </button>
+                                                    )}
                                                 </div>
-                                                <div className="flex justify-between text-lg font-bold border-t border-white/20 pt-2 mt-2 text-white">
-                                                    <span>Total</span>
-                                                    <span>${totalPrice}</span>
-                                                </div>
+                                            )}
+                                        </>
+                                    )}
+
+                                    {/* Long Stay Logic */}
+                                    {stayType === 'long' && (
+                                        <div className="space-y-4 animate-fadeIn">
+                                            {/* Helper Text */}
+                                            <div className="bg-brand-brown/20 rounded-lg p-4 mb-4 border border-brand-brown/40">
+                                                <p className="text-sm font-medium text-center text-white/90">
+                                                    Valid for extended stays of 1 month to 2 years.
+                                                </p>
                                             </div>
 
                                             {/* Auth Section if not verified */}
-                                            {!isVerified && (
+                                            {!isVerified ? (
                                                 <div className="p-4 bg-white/10 rounded-lg border border-white/20">
                                                     <p className="text-sm mb-3">Please verify your email to continue:</p>
                                                     {!showOtpInput ? (
@@ -483,16 +622,21 @@ const Home = () => {
                                                         </div>
                                                     )}
                                                 </div>
-                                            )}
+                                            ) : (
+                                                /* Verified User Section */
+                                                <div className="space-y-4">
+                                                    <div className="bg-green-500/10 border border-green-500/30 p-3 rounded-lg flex items-center gap-2">
+                                                        <span className="text-green-400 font-bold">✓</span>
+                                                        <span className="text-white text-sm">Quotation will be sent to: <strong>{email}</strong></span>
+                                                    </div>
 
-                                            {/* Final Booking Button */}
-                                            {isVerified && (
-                                                <button
-                                                    onClick={handleBooking}
-                                                    className="w-full bg-brand-brown text-white font-bold uppercase tracking-widest py-4 rounded-lg hover:bg-white hover:text-brand-green transition shadow-lg animate-pulse"
-                                                >
-                                                    Confirm Booking Request
-                                                </button>
+                                                    <button
+                                                        onClick={handleBooking}
+                                                        className="w-full bg-brand-brown text-white font-bold uppercase tracking-widest py-4 rounded-lg hover:bg-white hover:text-brand-green transition shadow-lg animate-pulse"
+                                                    >
+                                                        Request Price Quotation
+                                                    </button>
+                                                </div>
                                             )}
                                         </div>
                                     )}
@@ -500,6 +644,103 @@ const Home = () => {
                                     <p className="text-center text-xs opacity-60 mt-4">
                                         No payment required now. We will confirm your stay within 24 hours.
                                     </p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                {/* Location Section */}
+                <div className="py-20 border-t border-gray-100">
+                    <div className="text-center mb-12">
+                        <span className="text-brand-green tracking-[0.2em] text-xs font-bold uppercase mb-2 block">Explore Unawatuna</span>
+                        <h2 className="text-3xl md:text-4xl font-serif text-brand-dark">The Perfect Location</h2>
+                    </div>
+
+                    <div className="grid md:grid-cols-2 gap-8 items-center bg-white rounded-3xl shadow-xl overflow-hidden">
+                        {/* Map */}
+                        <div className="h-[500px] w-full relative">
+                            <iframe
+                                title="Coco Villa Location"
+                                width="100%"
+                                height="100%"
+                                frameBorder="0"
+                                style={{ border: 0 }}
+                                src={`https://maps.google.com/maps?q=${mapQuery}${mapQuery === "6.022760,80.246185" ? "&ll=6.028397,80.237084" : ""}&z=14&output=embed`}
+                                allowFullScreen
+                                className="transition-all duration-500"
+                            ></iframe>
+                        </div>
+
+                        {/* Details */}
+                        <div className="p-8 md:p-12">
+                            <div className="flex items-start gap-4 mb-8">
+                                <div className="p-3 bg-brand-green/10 rounded-full text-brand-green shrink-0">
+                                    <MapPin size={24} />
+                                </div>
+                                <div>
+                                    <h3 className="text-xl font-bold text-brand-dark mb-2">Unawatuna, Sri Lanka</h3>
+                                    <p className="text-gray-600 font-light mb-4">
+                                        Located in a peaceful coconut grove, nicely tucked away from the busy roads but just minutes from the action.
+                                    </p>
+                                    <button
+                                        onClick={() => setMapQuery("Tourist attractions in Unawatuna")}
+                                        className="text-sm text-brand-brown font-bold hover:text-brand-green underline decoration-dotted underline-offset-4 transition-colors"
+                                    >
+                                        Show All Attractions on Map
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div className="space-y-6">
+                                {/* Key Beaches */}
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div
+                                        className="p-3 border border-brand-brown/20 rounded-xl flex flex-col items-center text-center hover:bg-brand-bg hover:scale-105 transition duration-300 cursor-pointer group"
+                                        onMouseEnter={() => setMapQuery("Unawatuna Beach")}
+                                        onMouseLeave={() => setMapQuery("6.022760,80.246185")}
+                                    >
+                                        <div className="text-brand-brown mb-2 group-hover:text-brand-green transition-colors">
+                                            <Waves size={24} />
+                                        </div>
+                                        <span className="block text-lg font-serif text-brand-dark">1 KM</span>
+                                        <span className="text-[10px] uppercase tracking-wider text-gray-500">Unawatuna Beach</span>
+                                    </div>
+
+                                    <div
+                                        className="p-3 border border-brand-brown/20 rounded-xl flex flex-col items-center text-center hover:bg-brand-bg hover:scale-105 transition duration-300 cursor-pointer group"
+                                        onMouseEnter={() => setMapQuery("Jungle Beach, Unawatuna")}
+                                        onMouseLeave={() => setMapQuery("6.022760,80.246185")}
+                                    >
+                                        <div className="text-brand-brown mb-2 group-hover:text-brand-green transition-colors">
+                                            <Palmtree size={24} />
+                                        </div>
+                                        <span className="block text-lg font-serif text-brand-dark">1.5 KM</span>
+                                        <span className="text-[10px] uppercase tracking-wider text-gray-500">Jungle Beach</span>
+                                    </div>
+                                </div>
+
+                                {/* Other Attractions */}
+                                <div>
+                                    <h4 className="text-sm font-bold text-gray-400 uppercase tracking-widest mb-3">Nearby Highlights</h4>
+                                    <div className="flex flex-wrap gap-2">
+                                        {[
+                                            { name: "Galle Fort", query: "Galle Dutch Fort" },
+                                            { name: "Peace Pagoda", query: "Japanese Peace Pagoda Unawatuna" },
+                                            { name: "Turtle Hatchery", query: "Sea Turtle Hatchery Habaraduwa" },
+                                            { name: "Dalawella Beach (Swing)", query: "Dalawella Beach Swing" },
+                                            { name: "Yatagala Temple", query: "Yatagala Raja Maha Viharaya" }
+                                        ].map((spot, index) => (
+                                            <span
+                                                key={index}
+                                                className="px-3 py-1 bg-gray-100 hover:bg-brand-green hover:text-white rounded-full text-xs font-medium text-gray-600 transition-colors cursor-pointer"
+                                                onMouseEnter={() => setMapQuery(spot.query)}
+                                                onMouseLeave={() => setMapQuery("6.022760,80.246185")}
+                                            >
+                                                {spot.name}
+                                            </span>
+                                        ))}
+                                    </div>
                                 </div>
                             </div>
                         </div>

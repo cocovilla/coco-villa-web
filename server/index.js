@@ -31,6 +31,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/rooms', roomRoutes);
 app.use('/api/bookings', bookingRoutes);
 app.use('/api/images', imageRoutes); // [NEW]
+app.use('/api/facilities', require('./routes/facilityRoutes')); // [NEW Facilities]
 
 // Basic Route
 app.get('/', (req, res) => {

@@ -40,11 +40,43 @@ exports.checkAvailability = async (req, res) => {
     }
 };
 
-// Create Booking (User)
+// Create Booking (User) or Long Stay Inquiry
 exports.createBooking = async (req, res) => {
     try {
-        const { roomTypeId, checkIn, checkOut, guests, totalPrice, message } = req.body;
+        const { roomTypeId, checkIn, checkOut, guests, totalPrice, message, type, email } = req.body;
         const userId = req.user.id;
+
+        // Long Stay Inquiry Handling
+        if (type === 'long_stay_inquiry') {
+            // Send Email to Admin
+            await sendEmail(
+                'admin@cocovilla.com', // Replace with actual admin email or env var
+                'New Long Stay Inquiry',
+                `User: ${req.user.name} (${req.user.email})
+                 Contact Email: ${email}
+                 Guests: ${guests}
+                 Message: ${message || 'No message'}
+                 
+                 This user is requesting a quotation for a long stay (1 month - 2 years).`
+            );
+
+            // Send Confirmation to User
+            await sendEmail(
+                email,
+                'Inquiry Received - Coco Villa',
+                `Dear ${req.user.name},\n\nWe have received your request for a long stay quotation. Our team will review your requirements and get back to you within 24 hours with a personalized offer.\n\nBest Regards,\nCoco Villa Team`
+            );
+
+            // Notification (WhatsApp)
+            await sendWhatsApp(process.env.ADMIN_PHONE_NUMBER, `Long Stay Inquiry from ${req.user.name}. Check email.`);
+
+            return res.status(200).json({ message: 'Inquiry sent successfully' });
+        }
+
+        // Standard Booking Validation
+        if (!checkIn || !checkOut) {
+            return res.status(400).json({ message: 'Check-in and Check-out dates are required for standard bookings.' });
+        }
 
         // Check availability before creating
         const isAvailable = await checkRoomAvailability(checkIn, checkOut);

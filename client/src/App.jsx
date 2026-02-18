@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import Layout from './components/Layout';
 import Home from './pages/Home';
+import Facilities from './pages/Facilities';
 import MyBookings from './pages/MyBookings';
 import AdminDashboard from './pages/AdminDashboard';
 
@@ -29,13 +30,12 @@ function App() {
           },
         },
       }} />
-      <Layout>
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/my-bookings" element={<MyBookings />} />
-          <Route path="/admin" element={<AdminDashboard />} />
-        </Routes>
-      </Layout>
+      <Routes>
+        <Route path="/" element={<Layout><Home /></Layout>} />
+        <Route path="/facilities" element={<Layout><Facilities /></Layout>} />
+        <Route path="/my-bookings" element={<Layout><MyBookings /></Layout>} />
+        <Route path="/admin" element={<AdminDashboard />} />
+      </Routes>
     </Router>
   );
 }
