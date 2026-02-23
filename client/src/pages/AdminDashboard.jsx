@@ -17,8 +17,13 @@ import {
     MoreHorizontal,
     Menu,
     X,
+    ChevronLeft,
+    ChevronRight,
+    Search,
     Utensils
 } from 'lucide-react';
+import DatePicker from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css";
 import AdminImageManager from '../components/AdminImageManager';
 import AdminRoomManager from '../components/AdminRoomManager';
 import AdminAvailabilityManager from '../components/AdminAvailabilityManager';
@@ -42,16 +47,104 @@ const AdminDashboard = () => {
         message: ''
     });
 
-    // Fetch bookings only when dashboard tab is active or initially
+    const [stats, setStats] = useState({
+        total: 0,
+        pending: 0,
+        confirmed: 0,
+        revenue: 0,
+        completed: 0
+    });
+
+    // Filtering & Pagination State
+    const [searchQuery, setSearchQuery] = useState('');
+    const [dateRange, setDateRange] = useState({ start: '', end: '' });
+    const [statusFilter, setStatusFilter] = useState('');
+    const [currentPage, setCurrentPage] = useState(1);
+    const [totalPages, setTotalPages] = useState(1);
+    const [totalBookings, setTotalBookings] = useState(0);
+
+    // Debounce search
+    useEffect(() => {
+        const timer = setTimeout(() => {
+            if (activeTab === 'dashboard') fetchAllBookings();
+        }, 500);
+        return () => clearTimeout(timer);
+    }, [searchQuery, statusFilter, dateRange, currentPage, activeTab]);
+
+    const fetchAllBookings = async () => {
+        try {
+            setLoading(true);
+            const params = {
+                page: currentPage,
+                limit: 10,
+                search: searchQuery,
+                status: statusFilter,
+                startDate: dateRange.start,
+                endDate: dateRange.end
+            };
+            const res = await api.get('/bookings/all', { params });
+
+            // Should return { bookings, totalPages, currentPage, totalBookings }
+            // If backend hasn't been deployed/refreshed yet, might return array. Handle both.
+            if (Array.isArray(res.data)) {
+                // Fallback for old API response (if any cache issues)
+                setBookings(res.data);
+                // Calculate stats client-side for now
+                setStats({
+                    total: res.data.length,
+                    pending: res.data.filter(b => b.status === 'pending').length,
+                    confirmed: res.data.filter(b => b.status === 'confirmed').length,
+                    revenue: res.data.filter(b => b.status === 'confirmed' || b.status === 'completed').reduce((sum, b) => sum + (b.totalPrice || 0), 0),
+                    completed: res.data.filter(b => b.status === 'completed').length
+                });
+            } else {
+                setBookings(res.data.bookings);
+                setTotalPages(res.data.totalPages);
+                setTotalBookings(res.data.totalBookings);
+
+                // For stats, we might need a separate endpoint or just show what we have. 
+                // Ideally, backend sends stats separate from paginated list.
+                // For now, let's keep stats calculation if possible or mock it, 
+                // BUT better approach: create a separate stats endpoint or returned in getAllBookings meta.
+                // Since I didn't add stats to getAllBookings, I will calculate from the paginated list OR 
+                // I should assume the user wants the "Stats Row" to remain correct.
+                // The "Stats Row" currently relies on ALL bookings. 
+                // IF I paginate, I lose the ability to calculate TOTAL revenue client-side easily.
+                // I should add a stats endpoint.
+            }
+
+        } catch (err) {
+            console.error("Failed to fetch bookings", err);
+            if (err.response && (err.response.status === 401 || err.response.status === 403)) {
+                navigate('/');
+            }
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    // Separate effect for Stats (optional, but good for dashboard overview)
+    // I will add a simple stats endpoint to bookingController in next step if needed, 
+    // or for now, just accept that Stats might only reflect current page OR I need duplicate logical call.
+    // Let's implement a 'getStats' endpoint quickly or just fetch all for stats in background once?
+    // Actually, asking for "Pagination" usually implies "Recent Bookings" is paginated.
+    // The "Stats" top row usually summarizes EVERYTHING.
+    // So I should fetch stats separately.
+
+    // Let's fetch stats separately on mount.
     useEffect(() => {
         if (activeTab === 'dashboard') {
-            const fetchAllBookings = async () => {
+            const fetchDashboardData = async () => {
                 try {
                     setLoading(true);
-                    const res = await api.get('/bookings/all');
-                    setBookings(res.data);
+                    // Fetch stats in parallel
+                    const statsRes = await api.get('/bookings/admin/stats');
+                    setStats(statsRes.data);
+
+                    // Fetch initial bookings
+                    await fetchAllBookings();
                 } catch (err) {
-                    console.error("Failed to fetch bookings", err);
+                    console.error("Failed to fetch dashboard data", err);
                     if (err.response && (err.response.status === 401 || err.response.status === 403)) {
                         navigate('/');
                     }
@@ -59,9 +152,16 @@ const AdminDashboard = () => {
                     setLoading(false);
                 }
             };
-            fetchAllBookings();
+            fetchDashboardData();
         }
     }, [navigate, activeTab]);
+
+    // Handle pagination
+    const handlePageChange = (newPage) => {
+        if (newPage >= 1 && newPage <= totalPages) {
+            setCurrentPage(newPage);
+        }
+    };
 
     const handleStatusUpdate = (id, newStatus) => {
         let message = `Are you sure you want to mark this booking as ${newStatus}?`;
@@ -128,7 +228,7 @@ const AdminDashboard = () => {
                                 </div>
                                 <div>
                                     <p className="text-sm text-gray-500">Total Bookings</p>
-                                    <p className="text-2xl font-bold text-gray-800">{bookings.length}</p>
+                                    <p className="text-2xl font-bold text-gray-800">{stats.total}</p>
                                 </div>
                             </div>
                             <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 flex items-center gap-4">
@@ -138,7 +238,7 @@ const AdminDashboard = () => {
                                 <div>
                                     <p className="text-sm text-gray-500">Pending</p>
                                     <p className="text-2xl font-bold text-gray-800">
-                                        {bookings.filter(b => b.status === 'pending').length}
+                                        {stats.pending}
                                     </p>
                                 </div>
                             </div>
@@ -149,7 +249,7 @@ const AdminDashboard = () => {
                                 <div>
                                     <p className="text-sm text-gray-500">Confirmed</p>
                                     <p className="text-2xl font-bold text-gray-800">
-                                        {bookings.filter(b => b.status === 'confirmed' || b.status === 'completed').length}
+                                        {stats.confirmed}
                                     </p>
                                 </div>
                             </div>
@@ -160,25 +260,81 @@ const AdminDashboard = () => {
                                 <div className="flex-1">
                                     <p className="text-sm text-gray-500">Revenue</p>
                                     <p className="text-2xl font-bold text-gray-800">
-                                        ${bookings.filter(b => b.status === 'confirmed' || b.status === 'completed').reduce((sum, b) => sum + (b.totalPrice || 0), 0)}
+                                        ${stats.revenue.toLocaleString()}
                                     </p>
                                 </div>
                                 <div className="text-xs text-gray-400">
-                                    {bookings.filter(b => b.status === 'completed').length} completed stays
+                                    {stats.completed} completed stays
                                 </div>
                             </div>
                         </div>
 
                         {/* Recent Bookings Table */}
                         <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-                            <div className="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+                            <div className="px-6 py-4 border-b border-gray-100 flex flex-col md:flex-row justify-between items-center gap-4 bg-gray-50">
                                 <h3 className="font-bold text-lg text-gray-800">Recent Bookings</h3>
+
+                                <div className="flex flex-col md:flex-row gap-3 w-full md:w-auto">
+                                    {/* Search */}
+                                    <div className="relative">
+                                        <Search className="absolute left-3 top-2.5 text-gray-400 w-4 h-4" />
+                                        <input
+                                            type="text"
+                                            placeholder="Search guest or email..."
+                                            value={searchQuery}
+                                            onChange={(e) => setSearchQuery(e.target.value)}
+                                            className="pl-9 pr-4 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-brand-green w-full md:w-64"
+                                        />
+                                    </div>
+
+                                    {/* Date Range Filter */}
+                                    <div className="flex gap-2">
+                                        <div className="relative">
+                                            <DatePicker
+                                                selected={dateRange.start}
+                                                onChange={(date) => setDateRange({ ...dateRange, start: date })}
+                                                selectsStart
+                                                startDate={dateRange.start}
+                                                endDate={dateRange.end}
+                                                placeholderText="Start Date"
+                                                className="pl-3 pr-2 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-brand-green w-32"
+                                            />
+                                        </div>
+                                        <div className="relative">
+                                            <DatePicker
+                                                selected={dateRange.end}
+                                                onChange={(date) => setDateRange({ ...dateRange, end: date })}
+                                                selectsEnd
+                                                startDate={dateRange.start}
+                                                endDate={dateRange.end}
+                                                minDate={dateRange.start}
+                                                placeholderText="End Date"
+                                                className="pl-3 pr-2 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-brand-green w-32"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    {/* Status Filter */}
+                                    <div className="relative">
+                                        <select
+                                            value={statusFilter}
+                                            onChange={(e) => setStatusFilter(e.target.value)}
+                                            className="pl-3 pr-8 py-2 border border-gray-200 rounded-lg text-sm focus:outline-none focus:border-brand-green bg-white text-gray-600 cursor-pointer appearance-none"
+                                        >
+                                            <option value="">All Statuses</option>
+                                            <option value="confirmed">Confirmed</option>
+                                            <option value="pending">Pending</option>
+                                            <option value="cancelled">Cancelled</option>
+                                            <option value="completed">Completed</option>
+                                        </select>
+                                    </div>
+                                </div>
                             </div>
 
                             {loading ? (
                                 <div className="p-8 text-center text-gray-500">Loading bookings...</div>
                             ) : bookings.length === 0 ? (
-                                <div className="p-8 text-center text-gray-500">No bookings found.</div>
+                                <div className="p-8 text-center text-gray-500">No bookings found matching criteria.</div>
                             ) : (
                                 <>
                                     {/* Desktop Table View */}
@@ -242,7 +398,7 @@ const AdminDashboard = () => {
                                                                 <>
                                                                     <button
                                                                         onClick={() => handleStatusUpdate(booking._id, 'completed')}
-                                                                        className="bg-blue-500 text-white px-3 py-1 rounded text-xs hover:bg-opacity-90 font-medium transition"
+                                                                        className="bg-brand-green text-white px-3 py-1 rounded text-xs hover:bg-opacity-90 font-medium transition"
                                                                         title="Mark as completed/stayed"
                                                                     >
                                                                         Complete
@@ -359,6 +515,54 @@ const AdminDashboard = () => {
                                                 </div>
                                             </div>
                                         ))}
+                                    </div>
+
+                                    {/* Pagination Controls */}
+                                    <div className="px-6 py-4 border-t border-gray-100 flex flex-col md:flex-row justify-between items-center gap-4">
+                                        <p className="text-sm text-gray-500">
+                                            Showing page <span className="font-bold text-gray-800">{currentPage}</span> of <span className="font-bold text-gray-800">{totalPages}</span> ({totalBookings} total)
+                                        </p>
+                                        <div className="flex items-center gap-2">
+                                            <button
+                                                onClick={() => handlePageChange(currentPage - 1)}
+                                                disabled={currentPage === 1}
+                                                className="p-2 border border-gray-200 rounded-lg text-gray-600 hover:text-brand-green hover:border-brand-green transition disabled:opacity-50 disabled:cursor-not-allowed"
+                                            >
+                                                <ChevronLeft className="w-4 h-4" />
+                                            </button>
+
+                                            {/* Page Numbers (Simple version: just current, prev, next) */}
+                                            {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                                                // Logic to show generic page numbers around current page
+                                                let pageNum = currentPage - 2 + i;
+                                                if (currentPage < 3) pageNum = i + 1;
+                                                if (currentPage > totalPages - 2) pageNum = totalPages - 4 + i;
+
+                                                if (pageNum > 0 && pageNum <= totalPages) {
+                                                    return (
+                                                        <button
+                                                            key={pageNum}
+                                                            onClick={() => handlePageChange(pageNum)}
+                                                            className={`px-3 py-1 border rounded-lg text-sm font-medium transition
+                                                                ${currentPage === pageNum
+                                                                    ? 'border-brand-green bg-brand-green text-white'
+                                                                    : 'border-gray-200 text-gray-600 hover:border-brand-green hover:text-brand-green'}`}
+                                                        >
+                                                            {pageNum}
+                                                        </button>
+                                                    );
+                                                }
+                                                return null;
+                                            })}
+
+                                            <button
+                                                onClick={() => handlePageChange(currentPage + 1)}
+                                                disabled={currentPage === totalPages}
+                                                className="p-2 border border-gray-200 rounded-lg text-gray-600 hover:text-brand-green hover:border-brand-green transition disabled:opacity-50 disabled:cursor-not-allowed"
+                                            >
+                                                <ChevronRight className="w-4 h-4" />
+                                            </button>
+                                        </div>
                                     </div>
                                 </>
                             )}

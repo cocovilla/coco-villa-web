@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { createBooking, getMyBookings, getAllBookings, updateBookingStatus, checkAvailability, blockDates, getBlockedDates, deleteBlockedDate, updateBlockedDate, getUnavailableDates, cancelBooking } = require('../controllers/bookingController');
+const { createBooking, getMyBookings, getAllBookings, updateBookingStatus, checkAvailability, blockDates, getBlockedDates, deleteBlockedDate, updateBlockedDate, getUnavailableDates, cancelBooking, getBookingStats } = require('../controllers/bookingController');
 const { auth, admin } = require('../middleware/authMiddleware');
 
 // Public
@@ -12,6 +12,7 @@ router.get('/my', auth, getMyBookings);
 router.put('/:id/cancel', auth, cancelBooking);
 
 // Admin Routes
+router.get('/admin/stats', auth, admin, getBookingStats);
 router.get('/all', auth, admin, getAllBookings);
 router.put('/:id/status', auth, admin, updateBookingStatus);
 router.get('/admin/blocks', auth, admin, getBlockedDates);

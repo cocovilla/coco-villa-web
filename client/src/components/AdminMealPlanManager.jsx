@@ -11,7 +11,6 @@ const AdminMealPlanManager = () => {
         name: '',
         price: 0,
         description: '',
-        description: '',
         isActive: true,
         isDefault: false
     });
@@ -68,7 +67,6 @@ const AdminMealPlanManager = () => {
             name: plan.name,
             price: plan.price,
             description: plan.description || '',
-            description: plan.description || '',
             isActive: plan.isActive,
             isDefault: plan.isDefault
         });
@@ -79,7 +77,6 @@ const AdminMealPlanManager = () => {
         setFormData({
             name: '',
             price: 0,
-            description: '',
             description: '',
             isActive: true,
             isDefault: false
@@ -246,7 +243,7 @@ const AdminMealPlanManager = () => {
                         <div
                             key={plan._id}
                             onClick={() => handleEdit(plan)}
-                            className="bg-white border boundary-gray-200 rounded-lg p-4 shadow-sm relative flex flex-col gap-3 active:scale-[0.98] transition-transform"
+                            className="bg-white border border-gray-200 rounded-lg p-4 shadow-sm relative flex flex-col gap-3 active:scale-[0.98] transition-transform"
                         >
                             <div className="flex justify-between items-start">
                                 <div className="flex items-center gap-3">

@@ -179,13 +179,61 @@ exports.getMyBookings = async (req, res) => {
     }
 };
 
-// Admin: Get All Bookings
+// Admin: Get All Bookings (Paginated & Filtered)
 exports.getAllBookings = async (req, res) => {
     try {
-        const bookings = await Booking.find().populate('userId').populate('roomId').sort({ createdAt: -1 });
-        res.json(bookings);
+        const { page = 1, limit = 10, search, startDate, endDate, status } = req.query;
+
+        const query = {};
+
+        // Status Filter
+        if (status && status !== 'All Statuses' && status !== '') {
+            query.status = status.toLowerCase();
+        }
+
+        // Date Range Filter (Check-in dates)
+        if (startDate && endDate) {
+            query.checkIn = {
+                $gte: new Date(startDate),
+                $lte: new Date(endDate)
+            };
+        }
+
+        // Search Filter
+        if (search) {
+            const users = await User.find({
+                $or: [
+                    { name: { $regex: search, $options: 'i' } },
+                    { email: { $regex: search, $options: 'i' } }
+                ]
+            }).select('_id');
+
+            const userIds = users.map(u => u._id);
+
+            query.$or = [
+                { userId: { $in: userIds } },
+                { contactEmail: { $regex: search, $options: 'i' } } // For guest/long stay emails
+            ];
+        }
+
+        const bookings = await Booking.find(query)
+            .populate('userId', 'name email')
+            .populate('roomId', 'name')
+            .populate('roomTypeId', 'name')
+            .sort({ createdAt: -1 })
+            .limit(limit * 1)
+            .skip((page - 1) * limit);
+
+        const count = await Booking.countDocuments(query);
+
+        res.json({
+            bookings,
+            totalPages: Math.ceil(count / limit),
+            currentPage: Number(page),
+            totalBookings: count
+        });
     } catch (error) {
-        res.status(500).json({ message: 'Server error' });
+        res.status(500).json({ message: 'Server error', error: error.message });
     }
 };
 
@@ -333,6 +381,33 @@ exports.getUnavailableDates = async (req, res) => {
         }));
 
         res.json(unavailableDates);
+    } catch (error) {
+        res.status(500).json({ message: 'Server error', error: error.message });
+    }
+};
+
+// Admin: Get Booking Stats
+exports.getBookingStats = async (req, res) => {
+    try {
+        const total = await Booking.countDocuments();
+        const pending = await Booking.countDocuments({ status: 'pending' });
+        const confirmed = await Booking.countDocuments({ status: 'confirmed' });
+        const completed = await Booking.countDocuments({ status: 'completed' });
+
+        // Calculate revenue (only from confirmed/completed)
+        const revenueResult = await Booking.aggregate([
+            { $match: { status: { $in: ['confirmed', 'completed'] } } },
+            { $group: { _id: null, total: { $sum: '$totalPrice' } } }
+        ]);
+        const revenue = revenueResult.length > 0 ? revenueResult[0].total : 0;
+
+        res.json({
+            total,
+            pending,
+            confirmed,
+            revenue,
+            completed
+        });
     } catch (error) {
         res.status(500).json({ message: 'Server error', error: error.message });
     }
