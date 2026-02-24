@@ -6,7 +6,15 @@
     "scripts": {
         "start": "node index.js",
         "dev": "nodemon index.js",
-        "seed": "node scripts/seed.js"
+        "setup": "node scripts/setup.js",
+        "setup:start": "node scripts/setup.js && node index.js",
+        "seed": "node scripts/seed.js",
+        "seed:facilities": "node scripts/seedFacilities.js",
+        "seed:content": "node scripts/seedSiteContent.js",
+        "check:experience": "node scripts/checkExperienceContent.js",
+        "check:facilities": "node scripts/checkFacilities.js",
+        "mark:facilities": "node scripts/markFacilitiesImportant.js",
+        "test:email": "node scripts/test_email.js"
     },
     "dependencies": {
         "bcryptjs": "^3.0.3",
