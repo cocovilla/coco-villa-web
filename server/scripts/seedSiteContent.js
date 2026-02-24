@@ -1,13 +1,11 @@
+const path = require('path');
+require('dotenv').config({ path: path.join(__dirname, '../.env') });
 const mongoose = require('mongoose');
 const SiteContent = require('../models/SiteContent');
 const fs = require('fs');
-const path = require('path');
 
 // Connect to DB
-const MONGO_URI = "mongodb://localhost:27017/cocovilla";
-
-mongoose.connect(MONGO_URI, {
-})
+mongoose.connect(process.env.MONGO_URI)
     .then(() => seedData())
     .catch(err => {
         console.error("DB Error:", err);

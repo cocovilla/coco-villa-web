@@ -5,7 +5,6 @@ const scripts = [
     'scripts/seed.js',
     'scripts/seedFacilities.js',
     'scripts/seedSiteContent.js',
-    'scripts/markFacilitiesImportant.js',
 ];
 
 console.log('🚀 Running all setup scripts...\n');
