@@ -119,11 +119,13 @@ exports.createBooking = async (req, res) => {
 
         await booking.save();
 
-        // Notifications
-        await sendEmail(user.email, 'Booking Received - Pending Approval', 'Your booking request has been received.');
-        await sendWhatsApp(process.env.ADMIN_PHONE_NUMBER, `New Booking Request from ${user.name}`);
-
+        // Respond immediately — notifications are fire-and-forget (non-blocking)
         res.status(201).json(booking);
+
+        sendEmail(user.email, 'Booking Received - Pending Approval', 'Your booking request has been received.')
+            .catch(err => console.error('Email failed:', err));
+        sendWhatsApp(process.env.ADMIN_PHONE_NUMBER, `New Booking Request from ${user.name}`)
+            .catch(err => console.error('WhatsApp failed:', err));
     } catch (error) {
         res.status(500).json({ message: 'Server error', error: error.message });
     }
@@ -150,17 +152,18 @@ exports.cancelBooking = async (req, res) => {
         booking.status = 'cancelled';
         await booking.save();
 
-        // Notify Admin (optional, but good practice)
-        if (booking.type !== 'long_stay_inquiry') {
-            const user = await User.findById(req.user.id);
-            await sendEmail(
-                'admin@cocovilla.com',
-                'Booking Cancelled by User',
-                `Booking ID: ${booking._id}\nUser: ${user.name}\nCheck-in: ${new Date(booking.checkIn).toLocaleDateString()}`
-            );
-        }
-
+        // Respond immediately — email is fire-and-forget
         res.json({ message: 'Booking cancelled successfully', booking });
+
+        if (booking.type !== 'long_stay_inquiry') {
+            User.findById(req.user.id)
+                .then(user => sendEmail(
+                    'admin@cocovilla.com',
+                    'Booking Cancelled by User',
+                    `Booking ID: ${booking._id}\nUser: ${user.name}\nCheck-in: ${new Date(booking.checkIn).toLocaleDateString()}`
+                ))
+                .catch(err => console.error('Cancel email failed:', err));
+        }
     } catch (error) {
         res.status(500).json({ message: 'Server error', error: error.message });
     }
@@ -216,15 +219,17 @@ exports.getAllBookings = async (req, res) => {
             ];
         }
 
-        const bookings = await Booking.find(query)
-            .populate('userId', 'name email')
-            .populate('roomId', 'name')
-            .populate('roomTypeId', 'name')
-            .sort({ createdAt: -1 })
-            .limit(limit * 1)
-            .skip((page - 1) * limit);
-
-        const count = await Booking.countDocuments(query);
+        // Run find + count in parallel instead of serially
+        const [bookings, count] = await Promise.all([
+            Booking.find(query)
+                .populate('userId', 'name email')
+                .populate('roomId', 'name')
+                .populate('roomTypeId', 'name')
+                .sort({ createdAt: -1 })
+                .limit(limit * 1)
+                .skip((page - 1) * limit),
+            Booking.countDocuments(query)
+        ]);
 
         res.json({
             bookings,
@@ -264,13 +269,14 @@ exports.updateBookingStatus = async (req, res) => {
         booking.status = status;
         await booking.save();
 
-        // Notify User
+        // Respond immediately — email notification is fire-and-forget
+        res.json(booking);
+
         const subject = status === 'confirmed' ? 'Booking Confirmed!' : 'Booking Update';
         if (booking.userId && booking.userId.email) {
-            await sendEmail(booking.userId.email, subject, `Your booking status is now: ${status}`);
+            sendEmail(booking.userId.email, subject, `Your booking status is now: ${status}`)
+                .catch(err => console.error('Status email failed:', err));
         }
-
-        res.json(booking);
     } catch (error) {
         res.status(500).json({ message: 'Server error', error: error.message });
     }
@@ -389,25 +395,20 @@ exports.getUnavailableDates = async (req, res) => {
 // Admin: Get Booking Stats
 exports.getBookingStats = async (req, res) => {
     try {
-        const total = await Booking.countDocuments();
-        const pending = await Booking.countDocuments({ status: 'pending' });
-        const confirmed = await Booking.countDocuments({ status: 'confirmed' });
-        const completed = await Booking.countDocuments({ status: 'completed' });
-
-        // Calculate revenue (only from confirmed/completed)
-        const revenueResult = await Booking.aggregate([
-            { $match: { status: { $in: ['confirmed', 'completed'] } } },
-            { $group: { _id: null, total: { $sum: '$totalPrice' } } }
+        // Run all counts in parallel instead of 4 sequential round-trips
+        const [total, pending, confirmed, completed, revenueResult] = await Promise.all([
+            Booking.countDocuments(),
+            Booking.countDocuments({ status: 'pending' }),
+            Booking.countDocuments({ status: 'confirmed' }),
+            Booking.countDocuments({ status: 'completed' }),
+            Booking.aggregate([
+                { $match: { status: { $in: ['confirmed', 'completed'] } } },
+                { $group: { _id: null, total: { $sum: '$totalPrice' } } }
+            ])
         ]);
         const revenue = revenueResult.length > 0 ? revenueResult[0].total : 0;
 
-        res.json({
-            total,
-            pending,
-            confirmed,
-            revenue,
-            completed
-        });
+        res.json({ total, pending, confirmed, revenue, completed });
     } catch (error) {
         res.status(500).json({ message: 'Server error', error: error.message });
     }

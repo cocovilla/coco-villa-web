@@ -28,4 +28,15 @@ const bookingSchema = new mongoose.Schema({
     message: { type: String }
 }, { timestamps: true });
 
+// Indexes for query performance
+// Covers checkRoomAvailability: Booking.findOne({ status, checkIn, checkOut })
+bookingSchema.index({ status: 1, checkIn: 1, checkOut: 1 });
+// Covers getMyBookings: Booking.find({ userId })
+bookingSchema.index({ userId: 1 });
+// Covers getAllBookings sort: .sort({ createdAt: -1 })
+bookingSchema.index({ createdAt: -1 });
+// Covers getBlockedDates: Booking.find({ guests: 0, totalPrice: 0 })
+bookingSchema.index({ guests: 1, totalPrice: 1 });
+
+
 module.exports = mongoose.model('Booking', bookingSchema);

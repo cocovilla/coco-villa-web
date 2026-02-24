@@ -1,5 +1,6 @@
 import React, { useRef, useState, useCallback } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { cloudinaryUrl } from '../utils/cloudinaryUrl';
 
 const GardenGallery = ({ images = [] }) => {
     const scrollContainerRef = useRef(null);
@@ -100,10 +101,11 @@ const GardenGallery = ({ images = [] }) => {
                             >
                                 <div className="w-full h-full rounded-2xl overflow-hidden shadow-lg group relative">
                                     <img
-                                        src={typeof img === 'string' ? img : img.imageUrl}
+                                        src={cloudinaryUrl(typeof img === 'string' ? img : img.imageUrl, { width: 480 })}
                                         alt={`Garden ${index + 1}`}
                                         className="w-full h-full object-cover transition duration-700 ease-out group-hover:scale-110"
                                         draggable={false}
+                                        loading="lazy"
                                     />
                                     <div className="absolute inset-0 bg-black/10 group-hover:bg-black/0 transition duration-500" />
                                 </div>

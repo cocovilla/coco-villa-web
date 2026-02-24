@@ -20,6 +20,7 @@ import Navbar from '../components/Navbar';
 import Footer from '../components/Footer';
 import { useNavigate, Link } from 'react-router-dom';
 import toast from 'react-hot-toast';
+import { cloudinaryUrl } from '../utils/cloudinaryUrl';
 
 const Home = () => {
     const navigate = useNavigate();
@@ -392,7 +393,9 @@ const Home = () => {
                     <img
                         src="/hero.png"
                         alt="Coco Villa Hero"
-                        className="w-full h-full object-cover"
+                        className="w-full h-full object-cover object-[20%_center] md:object-center"
+
+
                     />
                     <div className="absolute inset-0 bg-black/30"></div>
                 </div>
@@ -437,8 +440,8 @@ const Home = () => {
                         <div className="grid grid-cols-2 gap-4">
                             {experienceImages.length > 0 ? (
                                 <>
-                                    <img src={experienceImages[0]} alt="Detail 1" className="rounded-2xl object-cover h-64 w-full transform translate-y-8" />
-                                    {experienceImages[1] && <img src={experienceImages[1]} alt="Detail 2" className="rounded-2xl object-cover h-64 w-full" />}
+                                    <img src={cloudinaryUrl(experienceImages[0], { width: 700 })} alt="Detail 1" className="rounded-2xl object-cover h-64 w-full transform translate-y-8" loading="lazy" />
+                                    {experienceImages[1] && <img src={cloudinaryUrl(experienceImages[1], { width: 700 })} alt="Detail 2" className="rounded-2xl object-cover h-64 w-full" loading="lazy" />}
                                 </>
                             ) : (
                                 <>
@@ -462,7 +465,8 @@ const Home = () => {
                                 <span className="text-brand-green tracking-[0.2em] text-xs font-bold uppercase mb-2 block">Your Stay</span>
                                 <h2 className="text-3xl md:text-4xl font-serif text-brand-dark mb-6">{roomType?.title}</h2>
 
-                                <RoomCarousel images={roomImagesForCarousel} />
+                                <RoomCarousel images={roomImages} />
+
 
                                 <p className="text-gray-600 leading-relaxed mb-8 font-light max-w-md">
                                     Experience ultimate relaxation in our tastefully designed villas. Surrounded by lush greenery, each room is a haven of peace featuring modern amenities and traditional charm.

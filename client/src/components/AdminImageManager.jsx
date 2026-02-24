@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { getImages, uploadImage, deleteImage } from '../services/api';
 import ConfirmModal from './ConfirmModal';
+import { cloudinaryUrl } from '../utils/cloudinaryUrl';
 
 const MAX_FILE_SIZE_MB = 10;
 const ACCEPTED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
@@ -154,7 +155,7 @@ const AdminImageManager = () => {
                 {images.map((img, index) => (
                     <div key={img._id || index} className="relative group aspect-square bg-gray-100 rounded-lg overflow-hidden border border-gray-200">
                         <img
-                            src={img.imageUrl}
+                            src={cloudinaryUrl(img.imageUrl, { width: 200 })}
                             alt={`${section} ${index}`}
                             className="w-full h-full object-cover"
                         />

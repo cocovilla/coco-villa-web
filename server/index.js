@@ -19,6 +19,11 @@ app.use(cors({
 }));
 app.use(express.json());
 
+// Keep-alive ping – hit this every 5 min to prevent Railway cold starts
+app.get('/ping', (req, res) => res.json({ status: 'ok', ts: Date.now() }));
+
+
+
 // Serve Static Files (Images) [NEW]
 app.use('/public', express.static(path.join(__dirname, 'public')));
 

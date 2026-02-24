@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Wifi, Tv, BedDouble, ParkingCircle, Plane, Coffee, MapPin, Waves, Palmtree, Utensils, Car, ShieldCheck, Dumbbell, Sparkles } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import api from '../services/api';
+import { cloudinaryUrl } from '../utils/cloudinaryUrl';
 
 // Icon mapping for dynamic rendering
 const iconMap = {
@@ -111,9 +112,10 @@ const Facilities = () => {
                                 <div className="w-full md:w-1/2 overflow-hidden rounded-3xl shadow-2xl group">
                                     {section.imageUrl ? (
                                         <img
-                                            src={section.imageUrl}
+                                            src={cloudinaryUrl(section.imageUrl, { width: 900 })}
                                             alt={section.title}
                                             className="w-full h-[400px] object-cover transition-transform duration-700 group-hover:scale-110"
+                                            loading="lazy"
                                         />
                                     ) : (
                                         <div className="w-full h-[400px] bg-gray-100 flex items-center justify-center text-gray-300">

@@ -8,7 +8,8 @@ const Footer = () => {
 
                     {/* Brand */}
                     <div className="text-center md:text-left mb-6 md:mb-0">
-                        <img src="/logo.png" alt="Coco Villa Logo" className="h-32 mx-auto md:mx-0 object-contain mb-4" />
+                        <img src="/logo.png" alt="Coco Villa Logo" className="h-32 mx-auto md:mx-0 object-contain mb-4" width="128" height="128" />
+
                     </div>
 
                     <div className="flex justify-center space-x-6">

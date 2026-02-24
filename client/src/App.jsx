@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import Layout from './components/Layout';
@@ -8,7 +8,18 @@ import MyBookings from './pages/MyBookings';
 import AdminDashboard from './pages/AdminDashboard';
 import ProfileSetup from './pages/ProfileSetup';
 
+const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
 function App() {
+  // Keep Railway server warm — ping every 4 minutes so it never sleeps between real user visits
+  useEffect(() => {
+    const ping = () => fetch(`${API_BASE}/ping`).catch(() => { });
+    ping(); // immediate on mount
+    const id = setInterval(ping, 4 * 60 * 1000);
+    return () => clearInterval(id);
+  }, []);
+
+
   return (
     <Router>
       <Toaster
