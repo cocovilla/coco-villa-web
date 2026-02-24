@@ -8,9 +8,27 @@ const iconMap = {
     Wifi, Tv, BedDouble, ParkingCircle, Plane, Coffee, MapPin, Waves, Palmtree, Utensils, Car, ShieldCheck, Dumbbell, Sparkles
 };
 
+// Skeleton loader for featured sections
+const SectionSkeleton = () => (
+    <div className="flex flex-col md:flex-row items-center gap-12 animate-pulse">
+        <div className="w-full md:w-1/2 h-[400px] bg-gray-200 rounded-3xl" />
+        <div className="w-full md:w-1/2 space-y-4">
+            <div className="h-8 bg-gray-200 rounded w-3/4" />
+            <div className="h-1 bg-gray-200 rounded w-16" />
+            <div className="space-y-2">
+                <div className="h-4 bg-gray-200 rounded" />
+                <div className="h-4 bg-gray-200 rounded w-5/6" />
+                <div className="h-4 bg-gray-200 rounded w-4/6" />
+            </div>
+        </div>
+    </div>
+);
+
 const Facilities = () => {
     const navigate = useNavigate();
     const [standardFacilities, setStandardFacilities] = useState([]);
+    const [featuredSections, setFeaturedSections] = useState([]);
+    const [loadingSections, setLoadingSections] = useState(true);
 
     useEffect(() => {
         const fetchFacilities = async () => {
@@ -21,30 +39,21 @@ const Facilities = () => {
                 console.error("Failed to fetch facilities", err);
             }
         };
-        fetchFacilities();
-    }, []);
 
-    // Featured Amenities (Images + Text)
-    const featuredFacilities = [
-        {
-            title: "Tropical Swimming Pool",
-            description: "Dive into relaxation in our pristine outdoor pool, surrounded by lush coconut palms and flowering plants. Perfect for a morning swim or a sunset dip.",
-            image: "https://images.unsplash.com/photo-1572331165267-854da2b00ca1?ixlib=rb-4.0.3&auto=format&fit=crop&w=2070&q=80", // Placeholder
-            align: "left"
-        },
-        {
-            title: "Exquisite Dining",
-            description: "Savor the flavors of Sri Lanka with our curated dining experiences. From fresh seafood breakfasts to private candlelit dinners in the garden.",
-            image: "https://images.unsplash.com/photo-1559339352-11d035aa65de?ixlib=rb-4.0.3&auto=format&fit=crop&w=1974&q=80", // Placeholder
-            align: "right"
-        },
-        {
-            title: "Serene Garden Sanctuary",
-            description: "Reconnect with nature in our expansive private garden. A peaceful haven for yoga, meditation, or simply reading a book under the shade.",
-            image: "https://images.unsplash.com/photo-1585320806297-9794b3e4eeae?ixlib=rb-4.0.3&auto=format&fit=crop&w=2032&q=80", // Placeholder
-            align: "left"
-        }
-    ];
+        const fetchFeaturedSections = async () => {
+            try {
+                const res = await api.get('/facility-sections');
+                setFeaturedSections(res.data);
+            } catch (err) {
+                console.error("Failed to fetch facility sections", err);
+            } finally {
+                setLoadingSections(false);
+            }
+        };
+
+        fetchFacilities();
+        fetchFeaturedSections();
+    }, []);
 
     const IconComponent = ({ name }) => {
         const Icon = iconMap[name] || Wifi;
@@ -57,7 +66,7 @@ const Facilities = () => {
             <div className="relative h-[60vh]">
                 <div className="absolute inset-0">
                     <img
-                        src="/hero.png" // Reusing hero image or fallback
+                        src="/hero.png"
                         alt="Facilities Hero"
                         className="w-full h-full object-cover"
                     />
@@ -66,7 +75,7 @@ const Facilities = () => {
                 <div className="relative z-10 h-full flex flex-col justify-center items-center text-center text-white px-4 animate-fadeIn">
                     <span className="text-sm md:text-base tracking-[0.3em] uppercase mb-4 opacity-90">Experience Luxury</span>
                     <h1 className="text-4xl md:text-6xl font-serif font-bold mb-6 tracking-wide">
-                        Facilities & Services
+                        Facilities &amp; Services
                     </h1>
                     <p className="text-base md:text-xl font-light max-w-2xl opacity-90">
                         Everything you need for a perfect tropical getaway.
@@ -86,26 +95,46 @@ const Facilities = () => {
                     </p>
                 </div>
 
-                {/* Featured Amenities (Zigzag) */}
+                {/* Featured Sections (Zigzag) — dynamic from admin */}
                 <div className="space-y-20 mb-20 animate-fadeIn delay-200">
-                    {featuredFacilities.map((feature, index) => (
-                        <div key={index} className={`flex flex-col md:flex-row items-center gap-12 ${feature.align === 'right' ? 'md:flex-row-reverse' : ''}`}>
-                            <div className="w-full md:w-1/2 overflow-hidden rounded-3xl shadow-2xl group">
-                                <img
-                                    src={feature.image}
-                                    alt={feature.title}
-                                    className="w-full h-[400px] object-cover transition-transform duration-700 group-hover:scale-110"
-                                />
+                    {loadingSections ? (
+                        <>
+                            <SectionSkeleton />
+                            <SectionSkeleton />
+                        </>
+                    ) : featuredSections.length > 0 ? (
+                        featuredSections.map((section, index) => (
+                            <div
+                                key={section._id}
+                                className={`flex flex-col md:flex-row items-center gap-12 ${index % 2 !== 0 ? 'md:flex-row-reverse' : ''}`}
+                            >
+                                <div className="w-full md:w-1/2 overflow-hidden rounded-3xl shadow-2xl group">
+                                    {section.imageUrl ? (
+                                        <img
+                                            src={section.imageUrl}
+                                            alt={section.title}
+                                            className="w-full h-[400px] object-cover transition-transform duration-700 group-hover:scale-110"
+                                        />
+                                    ) : (
+                                        <div className="w-full h-[400px] bg-gray-100 flex items-center justify-center text-gray-300">
+                                            <span className="text-sm">No image added yet</span>
+                                        </div>
+                                    )}
+                                </div>
+                                <div className="w-full md:w-1/2 text-center md:text-left">
+                                    <h3 className="text-3xl font-serif font-bold text-brand-dark mb-4">{section.title}</h3>
+                                    <div className="w-16 h-1 bg-brand-green mb-6 mx-auto md:mx-0"></div>
+                                    <p className="text-gray-600 leading-relaxed text-lg font-light whitespace-pre-line">
+                                        {section.description}
+                                    </p>
+                                </div>
                             </div>
-                            <div className="w-full md:w-1/2 text-center md:text-left">
-                                <h3 className="text-3xl font-serif font-bold text-brand-dark mb-4">{feature.title}</h3>
-                                <div className="w-16 h-1 bg-brand-green mb-6 mx-auto md:mx-0"></div>
-                                <p className="text-gray-600 leading-relaxed text-lg font-light">
-                                    {feature.description}
-                                </p>
-                            </div>
+                        ))
+                    ) : (
+                        <div className="text-center py-10 text-gray-400 italic">
+                            Facility sections will appear here once added by the admin.
                         </div>
-                    ))}
+                    )}
                 </div>
 
                 {/* Divider */}

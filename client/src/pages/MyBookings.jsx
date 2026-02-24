@@ -2,11 +2,14 @@ import React, { useEffect, useState } from 'react';
 import api from '../services/api';
 import { Calendar, Users, MapPin, Clock, CheckCircle, XCircle, AlertCircle, ArrowRight, Utensils } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import ConfirmModal from '../components/ConfirmModal';
+import toast from 'react-hot-toast';
 
 const MyBookings = () => {
     const [bookings, setBookings] = useState([]);
     const [loading, setLoading] = useState(true);
-    const [activeTab, setActiveTab] = useState('upcoming'); // 'upcoming', 'past', 'inquiries'
+    const [activeTab, setActiveTab] = useState('upcoming');
+    const [confirm, setConfirm] = useState({ show: false });
 
     useEffect(() => {
         const fetchBookings = async () => {
@@ -53,16 +56,23 @@ const MyBookings = () => {
         return !isPast && !isInquiry && !isCancelled; // Upcoming includes pending/confirmed standard bookings
     });
 
-    const handleCancel = async (bookingId) => {
-        if (window.confirm("Are you sure you want to cancel this booking?")) {
-            try {
-                await api.put(`/bookings/${bookingId}/cancel`);
-                setBookings(bookings.map(b => b._id === bookingId ? { ...b, status: 'cancelled' } : b));
-            } catch (err) {
-                console.error("Failed to cancel booking", err);
-                alert("Failed to cancel booking: " + (err.response?.data?.message || err.message));
+    const handleCancel = (bookingId) => {
+        setConfirm({
+            show: true,
+            title: 'Cancel This Booking?',
+            message: 'This action cannot be undone. Your booking will be marked as cancelled.',
+            confirmLabel: 'Yes, Cancel Booking',
+            onConfirm: async () => {
+                try {
+                    await api.put(`/bookings/${bookingId}/cancel`);
+                    setBookings(bookings.map(b => b._id === bookingId ? { ...b, status: 'cancelled' } : b));
+                    toast.success('Booking cancelled.');
+                } catch (err) {
+                    console.error('Failed to cancel booking', err);
+                    toast.error(err.response?.data?.message || 'Failed to cancel booking.');
+                }
             }
-        }
+        });
     };
 
     if (loading) return (
@@ -73,6 +83,7 @@ const MyBookings = () => {
 
     return (
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 min-h-screen bg-gray-50/50">
+            <ConfirmModal {...confirm} onCancel={() => setConfirm({ show: false })} />
             <div className="flex flex-col md:flex-row justify-between items-end mb-8 border-b border-gray-200 pb-4">
                 <div>
                     <h1 className="text-3xl font-serif text-brand-dark mb-2">My Bookings</h1>

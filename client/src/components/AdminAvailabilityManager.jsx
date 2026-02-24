@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import toast from 'react-hot-toast';
 import { getBlockedDates, blockDate, updateBlockedDate, deleteBlockedDate } from '../services/api';
+import ConfirmModal from './ConfirmModal';
 
 const AdminAvailabilityManager = () => {
     const [checkIn, setCheckIn] = useState('');
@@ -9,6 +10,7 @@ const AdminAvailabilityManager = () => {
     const [loading, setLoading] = useState(false);
     const [blockedDates, setBlockedDates] = useState([]);
     const [editingBlock, setEditingBlock] = useState(null);
+    const [confirm, setConfirm] = useState({ show: false });
 
     useEffect(() => {
         fetchBlockedDates();
@@ -69,16 +71,24 @@ const AdminAvailabilityManager = () => {
         window.scrollTo({ top: document.getElementById('availability-form')?.offsetTop - 100, behavior: 'smooth' });
     };
 
-    const handleDelete = async (id) => {
-        if (!window.confirm("Are you sure you want to unblock these dates?")) return;
-        try {
-            await deleteBlockedDate(id);
-            toast.success("Block removed successfully");
-            fetchBlockedDates();
-        } catch (err) {
-            console.error("Delete failed", err);
-            toast.error(err.response?.data?.message || "Failed to delete block");
-        }
+    const handleDelete = (id) => {
+        setConfirm({
+            show: true,
+            title: 'Unblock These Dates?',
+            message: 'This will make the dates available for bookings again.',
+            confirmLabel: 'Unblock',
+            confirmClass: 'bg-blue-600 hover:bg-blue-700',
+            onConfirm: async () => {
+                try {
+                    await deleteBlockedDate(id);
+                    toast.success('Block removed successfully');
+                    fetchBlockedDates();
+                } catch (err) {
+                    console.error('Delete failed', err);
+                    toast.error(err.response?.data?.message || 'Failed to delete block');
+                }
+            }
+        });
     };
 
     const handleCancelEdit = () => {
@@ -90,6 +100,7 @@ const AdminAvailabilityManager = () => {
 
     return (
         <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-6 mt-8">
+            <ConfirmModal {...confirm} onCancel={() => setConfirm({ show: false })} />
             <h2 className="text-xl font-bold text-gray-800 mb-6 border-b pb-2">Manual Availability Management</h2>
 
             <div className="bg-blue-50 text-blue-800 p-4 rounded-lg mb-6 text-sm">

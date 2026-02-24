@@ -34,3 +34,6 @@ yarn-error.log*
 
 # Brain/Agent artifacts
 .gemini
+
+# Google Service Account credentials (never commit!)
+credentials.json

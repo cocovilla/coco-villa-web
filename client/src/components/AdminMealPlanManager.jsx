@@ -2,11 +2,13 @@ import React, { useState, useEffect } from 'react';
 import api from '../services/api';
 import { Trash2, Edit2, Plus, Utensils, CheckCircle, XCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
+import ConfirmModal from './ConfirmModal';
 
 const AdminMealPlanManager = () => {
     const [mealPlans, setMealPlans] = useState([]);
     const [loading, setLoading] = useState(true);
     const [editingId, setEditingId] = useState(null);
+    const [confirm, setConfirm] = useState({ show: false });
     const [formData, setFormData] = useState({
         name: '',
         price: 0,
@@ -49,16 +51,22 @@ const AdminMealPlanManager = () => {
         }
     };
 
-    const handleDelete = async (id) => {
-        if (!window.confirm("Are you sure you want to delete this meal plan?")) return;
-        try {
-            await api.delete(`/meal-plans/${id}`);
-            toast.success("Meal plan deleted");
-            setMealPlans(mealPlans.filter(p => p._id !== id));
-        } catch (err) {
-            console.error("Error deleting meal plan", err);
-            toast.error("Failed to delete meal plan");
-        }
+    const handleDelete = (id) => {
+        setConfirm({
+            show: true,
+            title: 'Delete Meal Plan?',
+            message: 'This action cannot be undone.',
+            onConfirm: async () => {
+                try {
+                    await api.delete(`/meal-plans/${id}`);
+                    toast.success('Meal plan deleted');
+                    setMealPlans(mealPlans.filter(p => p._id !== id));
+                } catch (err) {
+                    console.error('Error deleting meal plan', err);
+                    toast.error('Failed to delete meal plan');
+                }
+            }
+        });
     };
 
     const handleEdit = (plan) => {
@@ -85,6 +93,7 @@ const AdminMealPlanManager = () => {
 
     return (
         <div className="bg-white rounded-lg shadow-lg p-6">
+            <ConfirmModal {...confirm} onCancel={() => setConfirm({ show: false })} />
             <h2 className="text-2xl font-bold mb-6 text-gray-800">Manage Meal Plans</h2>
 
             {/* Form */}

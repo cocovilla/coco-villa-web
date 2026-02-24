@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import api from '../services/api';
 import { Trash2, Edit2, Plus, Star, Wifi, Tv, BedDouble, ParkingCircle, Plane, Coffee, MapPin, Waves, Palmtree, Utensils, Car, ShieldCheck, Dumbbell, Sparkles } from 'lucide-react';
 import toast from 'react-hot-toast';
+import ConfirmModal from './ConfirmModal';
 
 // Icon mapping for dynamic rendering
 const iconMap = {
@@ -12,6 +13,7 @@ const AdminFacilityManager = () => {
     const [facilities, setFacilities] = useState([]);
     const [loading, setLoading] = useState(true);
     const [editingId, setEditingId] = useState(null);
+    const [confirm, setConfirm] = useState({ show: false });
     const [formData, setFormData] = useState({
         title: '',
         description: '',
@@ -53,16 +55,22 @@ const AdminFacilityManager = () => {
         }
     };
 
-    const handleDelete = async (id) => {
-        if (!window.confirm("Are you sure you want to delete this facility?")) return;
-        try {
-            await api.delete(`/facilities/${id}`);
-            toast.success("Facility deleted");
-            setFacilities(facilities.filter(f => f._id !== id));
-        } catch (err) {
-            console.error("Error deleting facility", err);
-            toast.error("Failed to delete facility");
-        }
+    const handleDelete = (id) => {
+        setConfirm({
+            show: true,
+            title: 'Delete Facility?',
+            message: 'This action cannot be undone.',
+            onConfirm: async () => {
+                try {
+                    await api.delete(`/facilities/${id}`);
+                    toast.success('Facility deleted');
+                    setFacilities(facilities.filter(f => f._id !== id));
+                } catch (err) {
+                    console.error('Error deleting facility', err);
+                    toast.error('Failed to delete facility');
+                }
+            }
+        });
     };
 
     const handleEdit = (facility) => {
@@ -92,6 +100,7 @@ const AdminFacilityManager = () => {
 
     return (
         <div className="bg-white rounded-lg shadow-lg p-6">
+            <ConfirmModal {...confirm} onCancel={() => setConfirm({ show: false })} />
             <h2 className="text-2xl font-bold mb-6 text-gray-800">Manage Facilities</h2>
 
             {/* Form */}

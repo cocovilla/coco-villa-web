@@ -89,7 +89,7 @@ const Home = () => {
                     }));
                 }
                 if (expRes.data.images && expRes.data.images.length > 0) {
-                    setExperienceImages(expRes.data.images.map(img => `http://localhost:5000${img.imageUrl}`));
+                    setExperienceImages(expRes.data.images.map(img => img.imageUrl));
                 }
 
                 // Fetch Important Facilities
@@ -139,26 +139,18 @@ const Home = () => {
         };
         fetchRoomData();
 
-        // Original image fetching logic (kept for consistency with original file structure, but modified to align with snippet's removal of image states)
+        // Fetch garden and room images
         const fetchImages = async () => {
             try {
-                const SERVER = 'http://localhost:5000';
-
-                // Hero - (Commented out in original, keeping it that way or ignoring)
-                // const heroRes = await api.get('/images/hero');
-
-                // Garden
                 const gardenRes = await api.get('/images/garden');
-                if (gardenRes.data.images && gardenRes.data.images.length > 0) {
-                    setGardenImages(gardenRes.data.images.map(img => `${SERVER}${img.imageUrl}`));
+                if (gardenRes.data.images?.length > 0) {
+                    setGardenImages(gardenRes.data.images.map(img => img.imageUrl));
                 }
 
-                // Rooms
                 const roomImgRes = await api.get('/images/rooms');
-                if (roomImgRes.data.images && roomImgRes.data.images.length > 0) {
-                    setRoomImages(roomImgRes.data.images.map(img => `${SERVER}${img.imageUrl}`));
+                if (roomImgRes.data.images?.length > 0) {
+                    setRoomImages(roomImgRes.data.images.map(img => img.imageUrl));
                 }
-
             } catch (err) {
                 console.error("Failed to fetch images", err);
             }

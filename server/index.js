@@ -1,4 +1,4 @@
-require('dotenv').config();
+require('dotenv').config({ path: require('path').join(__dirname, '.env') });
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
@@ -36,6 +36,7 @@ app.use('/api/bookings', bookingRoutes);
 app.use('/api/images', imageRoutes); // [NEW]
 app.use('/api/facilities', require('./routes/facilityRoutes')); // [NEW Facilities]
 app.use('/api/meal-plans', require('./routes/mealPlanRoutes')); // [NEW Meal Plans]
+app.use('/api/facility-sections', require('./routes/facilitySectionRoutes')); // [NEW Facility Sections]
 
 // Basic Route
 app.get('/', (req, res) => {

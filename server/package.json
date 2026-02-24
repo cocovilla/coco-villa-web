@@ -8,6 +8,7 @@
         "dev": "nodemon index.js",
         "setup": "node scripts/setup.js",
         "setup:start": "node scripts/setup.js && node index.js",
+        "sync:cloudinary": "node scripts/syncFromCloudinary.js",
         "seed": "node scripts/seed.js",
         "seed:facilities": "node scripts/seedFacilities.js",
         "seed:content": "node scripts/seedSiteContent.js",
@@ -18,6 +19,7 @@
     },
     "dependencies": {
         "bcryptjs": "^3.0.3",
+        "cloudinary": "^2.9.0",
         "cors": "^2.8.5",
         "dotenv": "^16.3.1",
         "express": "^4.18.2",

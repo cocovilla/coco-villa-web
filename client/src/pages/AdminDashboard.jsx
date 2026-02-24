@@ -30,6 +30,7 @@ import AdminAvailabilityManager from '../components/AdminAvailabilityManager';
 import AdminExperienceManager from '../components/AdminExperienceManager';
 import AdminFacilityManager from '../components/AdminFacilityManager';
 import AdminMealPlanManager from '../components/AdminMealPlanManager';
+import AdminFacilitySectionManager from '../components/AdminFacilitySectionManager';
 
 const AdminDashboard = () => {
     const [bookings, setBookings] = useState([]);
@@ -577,6 +578,8 @@ const AdminDashboard = () => {
                 return <AdminMealPlanManager />;
             case 'facilities':
                 return <AdminFacilityManager />;
+            case 'facilitySections':
+                return <AdminFacilitySectionManager />;
             case 'experience':
                 return <AdminExperienceManager />;
             case 'gallery':
@@ -620,6 +623,7 @@ const AdminDashboard = () => {
                     <SidebarItem id="availability" label="Availability" icon={CalendarCheck} />
                     <SidebarItem id="mealPlans" label="Meal Plans" icon={Utensils} />
                     <SidebarItem id="facilities" label="Facilities" icon={Wifi} />
+                    <SidebarItem id="facilitySections" label="Facility Sections" icon={Image} />
 
                     <div className="pt-6 pb-2 px-4">
                         <span className="text-xs uppercase tracking-wider text-brand-brown font-bold opacity-80">Management</span>
